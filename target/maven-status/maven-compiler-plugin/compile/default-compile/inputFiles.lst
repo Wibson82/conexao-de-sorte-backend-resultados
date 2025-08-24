@@ -1,0 +1,16 @@
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/ResultadosApplication.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/aplicacao/mapper/ResultadoMapper.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/aplicacao/servico/ResultadoService.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/controlador/GlobalExceptionHandler.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/controlador/ResultadoController.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/dto/EstatisticasDto.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/dto/PaginacaoDto.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/dto/RankingDto.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/dto/ResultadoDto.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/CacheConfig.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/ObservabilityConfig.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/R2dbcConfig.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/SecurityConfig.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/dominio/entidade/ResultadoR2dbc.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/dominio/entidade/base/ReactiveAuditableEntity.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/dominio/repositorio/RepositorioResultadoR2dbc.java

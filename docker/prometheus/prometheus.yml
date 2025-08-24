@@ -1,0 +1,69 @@
+# ============================================================================
+# 📈 CONFIGURAÇÃO PROMETHEUS - MICROSERVIÇO RESULTADOS
+# ============================================================================
+# 
+# Configuração de coleta de métricas do microserviço resultados:
+# - Scraping do actuator/prometheus endpoint
+# - Métricas de sistema e aplicação
+# - Configuração de alertas básicos
+# - Retenção otimizada
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'resultados-microservice-monitor'
+
+# Configuração de alertas (opcional)
+rule_files:
+  # - "rules/*.yml"
+
+# Configurações de scraping
+scrape_configs:
+  # Métricas do Prometheus próprio
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Microserviço Resultados
+  - job_name: 'resultados-microservice'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['resultados-service:8082']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: resultados-service:8082
+
+  # Métricas do MySQL (se mysqld_exporter estiver disponível)
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['resultados-mysql:3306']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    # Opcional: adicionar mysqld_exporter
+
+  # Métricas do Redis (se redis_exporter estiver disponível)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['resultados-redis:6379']
+    metrics_path: '/metrics'  
+    scrape_interval: 30s
+    # Opcional: adicionar redis_exporter
+
+  # Node Exporter (métricas de sistema)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    # Opcional: adicionar node_exporter
+
+# Configuração de storage
+storage:
+  tsdb:
+    retention.time: 7d
+    retention.size: 1GB

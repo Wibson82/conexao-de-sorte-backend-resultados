@@ -1,0 +1,202 @@
+# ============================================================================
+# 🐳 DOCKER COMPOSE - AMBIENTE COMPLETO RESULTADOS
+# ============================================================================
+# 
+# Orquestração completa do microserviço resultados:
+# - MySQL 8.0 com R2DBC
+# - Redis para cache distribuído  
+# - Prometheus para métricas
+# - Grafana para dashboards
+# - Volumes persistentes
+# - Rede isolada
+# 
+# Uso: docker-compose up -d
+# ============================================================================
+
+version: '3.9'
+
+services:
+  # ========================================
+  # 📊 MICROSERVIÇO RESULTADOS
+  # ========================================
+  resultados-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resultados-microservice
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      # Database
+      - DB_HOST=resultados-mysql
+      - DB_PORT=3306
+      - DB_NAME=conexao_sorte_resultados
+      - DB_USERNAME=resultados_user
+      - DB_PASSWORD=resultados_pass123!
+      
+      # Redis
+      - REDIS_HOST=resultados-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_pass123!
+      
+      # JWT
+      - JWT_JWKS_URI=http://autenticacao-service:8081/.well-known/jwks.json
+      - JWT_ISSUER=https://auth.conexaodesorte.com
+      
+      # Features
+      - FEATURE_RESULTADOS_MS=true
+      - FEATURE_ADVANCED_RANKING=true
+      - FEATURE_STATS_CACHE=true
+      - FEATURE_AUDIT_LOGGING=true
+      - FEATURE_METRICS=true
+      
+      # Observability
+      - TRACING_PROBABILITY=1.0
+      - LOG_LEVEL=INFO
+      
+      # Performance
+      - JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+    depends_on:
+      - resultados-mysql
+      - resultados-redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - resultados-network
+    volumes:
+      - ./logs:/app/logs
+
+  # ========================================
+  # 🗄️ MYSQL DATABASE
+  # ========================================
+  resultados-mysql:
+    image: mysql:8.0
+    container_name: resultados-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"  # Porta diferente para evitar conflito
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_pass123!
+      - MYSQL_DATABASE=conexao_sorte_resultados
+      - MYSQL_USER=resultados_user
+      - MYSQL_PASSWORD=resultados_pass123!
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --innodb-buffer-pool-size=1G
+      --innodb-log-file-size=256M
+      --max-connections=200
+    volumes:
+      - resultados-mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./src/main/resources/db/migration:/docker-entrypoint-initdb.d/migrations:ro
+    networks:
+      - resultados-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # ========================================
+  # 🚀 REDIS CACHE
+  # ========================================
+  resultados-redis:
+    image: redis:7-alpine
+    container_name: resultados-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"  # Porta diferente para evitar conflito
+    environment:
+      - REDIS_PASSWORD=redis_pass123!
+    command: >
+      redis-server 
+      --requirepass redis_pass123!
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 60
+      --timeout 300
+    volumes:
+      - resultados-redis-data:/data
+    networks:
+      - resultados-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_pass123!", "ping"]
+      timeout: 20s
+      retries: 5
+
+  # ========================================
+  # 📈 PROMETHEUS (Métricas)
+  # ========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: resultados-prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"  # Porta diferente para evitar conflito
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - resultados-network
+    depends_on:
+      - resultados-service
+
+  # ========================================
+  # 📊 GRAFANA (Dashboards)
+  # ========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: resultados-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"  # Porta diferente para evitar conflito
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123!
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - resultados-network
+    depends_on:
+      - prometheus
+
+# ========================================
+# 💾 VOLUMES PERSISTENTES
+# ========================================
+volumes:
+  resultados-mysql-data:
+    driver: local
+  resultados-redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# ========================================
+# 🌐 REDE ISOLADA
+# ========================================
+networks:
+  resultados-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
