@@ -2,7 +2,6 @@ package br.tec.facilitaservicos.resultados.aplicacao.servico;
 
 import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -33,17 +32,17 @@ public class ResultadoService {
     // Constantes para valores hardcoded
     private static final int PAGINA_MINIMA = 0;
     private static final int TAMANHO_MINIMO = 1;
+    private static final int TAMANHO_MAXIMO_DEFAULT = 100;
     private static final int LIMITE_MAXIMO_RANKING = 50;
-    private static final int PERIODO_MAXIMO_DIAS = 365;
 
     private final RepositorioResultadoR2dbc repositorio;
     private final ResultadoMapper mapper;
 
     @Value("${pagination.default-size:20}")
-    private int tamanhoDefault;
+    private int tamanhoDefault = 20;
 
     @Value("${pagination.max-size:100}")
-    private int tamanhoMaximo;
+    private int tamanhoMaximo = TAMANHO_MAXIMO_DEFAULT;
 
     public ResultadoService(RepositorioResultadoR2dbc repositorio, ResultadoMapper mapper) {
         this.repositorio = repositorio;
@@ -60,8 +59,8 @@ public class ResultadoService {
      */
     public Mono<PaginacaoDto<ResultadoDto>> buscarResultados(int pagina, int tamanho, String ordenacao, Integer periodo) {
         // Validar e ajustar parâmetros
-        final int paginaFinal = Math.clamp(pagina, PAGINA_MINIMA, Integer.MAX_VALUE);
-        final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, tamanhoMaximo);
+        final int paginaFinal = Math.max(pagina, PAGINA_MINIMA);
+        final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, Math.max(tamanhoMaximo, TAMANHO_MINIMO));
         
         Sort sort = criarOrdenacao(ordenacao);
         Pageable pageable = PageRequest.of(paginaFinal, tamanhoFinal, sort);
@@ -103,7 +102,7 @@ public class ResultadoService {
      * @return Lista com ranking
      */
     public Flux<RankingDto> buscarRanking(Integer temporada, Integer limite) {
-        final int limiteRanking = Math.clamp(limite, TAMANHO_MINIMO, LIMITE_MAXIMO_RANKING);
+        final int limiteRanking = Math.clamp(limite != null ? limite : TAMANHO_MINIMO, TAMANHO_MINIMO, LIMITE_MAXIMO_RANKING);
 
         Flux<Object[]> estatisticas;
         
@@ -171,8 +170,8 @@ public class ResultadoService {
      * @return Resultados paginados de hoje
      */
     public Mono<PaginacaoDto<ResultadoDto>> buscarResultadosHoje(int pagina, int tamanho) {
-        final int paginaFinal = Math.clamp(pagina, PAGINA_MINIMA, Integer.MAX_VALUE);
-        final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, tamanhoMaximo);
+        final int paginaFinal = Math.max(pagina, PAGINA_MINIMA);
+        final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, Math.max(tamanhoMaximo, TAMANHO_MINIMO));
         
         Pageable pageable = PageRequest.of(paginaFinal, tamanhoFinal);
 
@@ -220,8 +219,11 @@ public class ResultadoService {
     }
 
     private Flux<String> buscarHorariosRecentes() {
-        return repositorio.findResultadosRecentes(PageRequest.of(0, 50))
-            .map(resultado -> resultado.getHorario())
+        var pageable = PageRequest.of(0, 50);
+        var flux = repositorio.findResultadosRecentes(pageable);
+        // Evita NPE caso um mock mal configurado retorne null
+        return (flux == null ? Flux.<br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc>empty() : flux)
+            .map(br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc::getHorario)
             .distinct();
     }
 }

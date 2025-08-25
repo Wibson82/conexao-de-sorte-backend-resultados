@@ -22,7 +22,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -160,6 +159,8 @@ class ResultadoServiceTest {
             .thenReturn(Flux.empty());
         when(repositorio.findHorariosPorData(any(LocalDate.class)))
             .thenReturn(Flux.just("14:00"));
+        when(repositorio.findResultadosRecentes(any(Pageable.class)))
+            .thenReturn(Flux.just(entidade));
 
         // When
         var resultado = service.buscarEstatisticas();

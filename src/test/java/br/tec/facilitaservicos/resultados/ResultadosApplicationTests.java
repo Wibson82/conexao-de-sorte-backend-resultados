@@ -19,56 +19,25 @@ import io.r2dbc.spi.ConnectionFactoryMetadata;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(properties = {
-    "spring.autoconfigure.exclude=" +
-        "org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration," +
-        "org.springframework.boot.autoconfigure.data.r2dbc.R2dbcDataAutoConfiguration," +
-        "org.springframework.boot.autoconfigure.data.r2dbc.R2dbcRepositoriesAutoConfiguration," +
-        "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration," +
-        "org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration," +
-        "org.springframework.boot.autoconfigure.security.oauth2.resource.reactive.ReactiveOAuth2ResourceServerAutoConfiguration," +
-        "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration," +
-        "org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration",
-    "features.statistics-cache=false"
-})
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+        "spring.r2dbc.url=r2dbc:h2:mem:///testdb?options=DB_CLOSE_DELAY=-1",
+        "spring.r2dbc.username=sa",
+        "spring.r2dbc.password=",
+        "spring.flyway.enabled=false",
+        "features.statistics-cache=false",
+        "app.cors.allowed-origins=http://localhost:3000",
+        "management.endpoints.web.exposure.include=health,info"
+    }
+)
 @ActiveProfiles("test")
 class ResultadosApplicationTests {
-
-    @TestConfiguration
-    static class TestSecurityConfig {
-        @Bean
-        SecurityWebFilterChain testSpringSecurityFilterChain() {
-            ServerHttpSecurity http = ServerHttpSecurity.http();
-            return http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
-                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
-                .authorizeExchange(exchanges -> exchanges.anyExchange().permitAll())
-                .build();
-        }
-    }
-
-    @TestConfiguration
-    static class TestDataConfig {
-        @Bean
-        ConnectionFactory connectionFactory() {
-            ConnectionFactory cf = mock(ConnectionFactory.class);
-            ConnectionFactoryMetadata meta = new ConnectionFactoryMetadata() {
-                @Override
-                public String getName() { return "H2"; }
-            };
-            when(cf.getMetadata()).thenReturn(meta);
-            return cf;
-        }
-
-        @Bean
-        R2dbcMappingContext r2dbcMappingContext() {
-            return new R2dbcMappingContext();
-        }
-    }
 
     @Test
     void contextLoads() {
         // Teste básico para verificar se o contexto da aplicação carrega corretamente
+        // Este teste verifica apenas se a aplicação inicializa sem erros, 
+        // não testa integração com outros microserviços
     }
 }

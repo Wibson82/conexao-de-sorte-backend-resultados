@@ -1,10 +1,10 @@
 # 📊 Microserviço de Resultados
 
-[![Java](https://img.shields.io/badge/Java-24-orange.svg)](https://openjdk.java.net/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5+-green.svg)](https://spring.io/projects/spring-boot)
-[![WebFlux](https://img.shields.io/badge/WebFlux-Reactive-blue.svg)](https://docs.spring.io/spring-framework/docs/current/reference/html/web-reactive.html)
-[![R2DBC](https://img.shields.io/badge/R2DBC-Reactive-purple.svg)](https://r2dbc.io/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+![Java](https://img.shields.io/badge/Java-24-orange?style=flat-square&logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5+-green?style=flat-square&logo=springboot)
+![WebFlux](https://img.shields.io/badge/WebFlux-Reactive-blue?style=flat-square)
+![R2DBC](https://img.shields.io/badge/R2DBC-Reactive-purple?style=flat-square)
+![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=flat-square&logo=docker)
 
 Microserviço **100% reativo** para consulta de resultados de loteria, construído com Spring WebFlux e R2DBC.
 
@@ -225,6 +225,13 @@ docker-compose down
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para detalhes.
 
+## 📞 Suporte
+
+- **Issues:** [GitHub Issues](https://github.com/Wibson82/conexao-de-sorte-backend-resultados/issues)
+- **Wiki:** [Documentação Completa](https://github.com/Wibson82/conexao-de-sorte-backend-resultados/wiki)
+
 ---
 
-**🚀 Microserviço Resultados** - Sistema de Migração R2DBC v1.0
+**📊 Conexão de Sorte Results Microservice**  
+*Sistema de Migração R2DBC v1.0 - Powered by Spring Boot 3.5+ & Java 24*  
+*Built with ❤️ by the Conexão de Sorte Team*

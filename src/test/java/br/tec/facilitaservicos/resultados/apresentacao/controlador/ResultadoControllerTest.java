@@ -27,6 +27,15 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.r2dbc.R2dbcDataAutoConfiguration;
+import org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.reactive.ReactiveOAuth2ResourceServerAutoConfiguration;
 
 /**
  * Testes de integração para ResultadoController
@@ -35,9 +44,18 @@ import org.springframework.context.annotation.Import;
  * @version 1.0
  * @since 2024
  */
-@WebFluxTest(controllers = ResultadoController.class)
+@WebFluxTest(
+    controllers = ResultadoController.class,
+    excludeAutoConfiguration = {
+        R2dbcAutoConfiguration.class,
+        R2dbcDataAutoConfiguration.class,
+        FlywayAutoConfiguration.class,
+        ReactiveSecurityAutoConfiguration.class,
+        ReactiveOAuth2ResourceServerAutoConfiguration.class
+    }
+)
 @ActiveProfiles("test")
-@Import(ResultadoController.class)
+@Import({ResultadoController.class, ResultadoControllerTest.TestSecurityConfig.class})
 class ResultadoControllerTest {
 
     @Autowired
@@ -48,6 +66,20 @@ class ResultadoControllerTest {
 
     private ResultadoDto resultadoDto;
     private PaginacaoDto<ResultadoDto> paginacaoDto;
+
+    @TestConfiguration
+    static class TestSecurityConfig {
+        @Bean
+        SecurityWebFilterChain testSpringSecurityFilterChain() {
+            ServerHttpSecurity http = ServerHttpSecurity.http();
+            return http
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                .authorizeExchange(exchanges -> exchanges.anyExchange().permitAll())
+                .build();
+        }
+    }
 
     @BeforeEach
     void setUp() {
@@ -63,7 +95,11 @@ class ResultadoControllerTest {
     @Test
     void buscarResultados_DeveRetornarPaginacao() {
         // Given
-        when(service.buscarResultados(anyInt(), anyInt(), anyString(), any()))
+        when(service.buscarResultados(
+                anyInt(),
+                anyInt(),
+                org.mockito.ArgumentMatchers.isNull(String.class),
+                org.mockito.ArgumentMatchers.isNull(Integer.class)))
             .thenReturn(Mono.just(paginacaoDto));
 
         // When & Then
@@ -196,8 +232,9 @@ class ResultadoControllerTest {
             .accept(MediaType.APPLICATION_JSON)
             .exchange()
             .expectStatus().isOk()
-            .expectBodyList(String.class)
-            .hasSize(3);
+            .expectBody()
+            .jsonPath("$").isArray()
+            .jsonPath("$.length()").isEqualTo(3);
     }
 
     @Test
