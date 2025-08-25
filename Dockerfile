@@ -50,8 +50,7 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.m2 \
     mvn clean package -DskipTests -B \
     -Dspring-boot.build-image.pullPolicy=IF_NOT_PRESENT \
-    -Dmaven.compiler.debug=false \
-    -Dmaven.compiler.optimize=true
+    -Dmaven.compiler.debug=false
 
 # === ESTÁGIO 2: RUNTIME ===
 FROM eclipse-temurin:24-jre-alpine AS runtime
