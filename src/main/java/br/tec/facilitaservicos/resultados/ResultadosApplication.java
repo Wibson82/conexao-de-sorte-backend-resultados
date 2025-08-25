@@ -2,6 +2,11 @@ package br.tec.facilitaservicos.resultados;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.data.r2dbc.config.EnableR2dbcAuditing;
+
+import br.tec.facilitaservicos.resultados.configuracao.AplicacaoProperties;
 
 /**
  * ============================================================================
@@ -13,6 +18,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * - WebFlux (reativo)
  * - R2DBC (reativo)
  * - Spring Security reativo com JWT
+ * - Azure Key Vault para gerenciamento de secrets
  * - Paginação otimizada para alta cardinalidade
  * - Cache inteligente para consultas frequentes
  * - Rate limiting por endpoint
@@ -26,6 +32,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * ============================================================================
  */
 @SpringBootApplication
+@EnableCaching
+@EnableR2dbcAuditing
+@EnableConfigurationProperties(AplicacaoProperties.class)
 public class ResultadosApplication {
     
     public static void main(String[] args) {

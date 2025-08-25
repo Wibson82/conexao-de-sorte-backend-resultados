@@ -32,62 +32,95 @@ spring:
               name: resultados-microservice-secrets
               case-sensitive: false
 
-  # ===== DATABASE CONFIGURATION =====
+  # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
   # Primary: Azure Key Vault secrets
   # Fallback: Environment variables from container
-  datasource:
-    url: ${conexao-de-sorte-database-url:jdbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo}
+  r2dbc:
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo}
     username: ${conexao-de-sorte-database-username:${DATABASE_USERNAME:resultados_user}}
     password: ${conexao-de-sorte-database-password:${DATABASE_PASSWORD:}}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+    pool:
+      enabled: true
+      initial-size: 10
+      max-size: 50
+      max-idle-time: 30m
+      max-acquire-time: 60s
 
-  # ===== JPA CONFIGURATION =====
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    database-platform: org.hibernate.dialect.MySQL8Dialect
-    show-sql: false
+  # ===== FLYWAY CONFIGURATION (JDBC para migrations) =====
+  flyway:
+    enabled: true
+    url: ${conexao-de-sorte-database-url:jdbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo}
+    user: ${conexao-de-sorte-database-username:${DATABASE_USERNAME:resultados_user}}
+    password: ${conexao-de-sorte-database-password:${DATABASE_PASSWORD:}}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
 
-# ===== MICROSERVICE SPECIFIC CONFIG =====
-app:
-  microservice:
-    name: resultados
-    version: @project.version@
-    description: "Microserviço de gerenciamento de resultados de loteria"
+  # ===== REDIS CONFIGURATION =====
+  data:
+    redis:
+      host: ${conexao-de-sorte-redis-host:${REDIS_HOST:redis}}
+      port: ${conexao-de-sorte-redis-port:${REDIS_PORT:6379}}
+      password: ${conexao-de-sorte-redis-password:${REDIS_PASSWORD:}}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 20
+          max-idle: 8
+          min-idle: 2
+
+  # ===== SECURITY JWT CONFIGURATION =====
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Configuração para validação de tokens (não geração)
+          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:${JWT_JWKS_URI:http://localhost:8081/.well-known/jwks.json}}
+          issuer-uri: ${conexao-de-sorte-jwt-issuer:${JWT_ISSUER:https://auth.conexaodesorte.com}}
+
+# ===== APLICAÇÃO ESPECÍFICA =====
+aplicacao:
+  microservico:
+    nome: resultados
+    versao: "@project.version@"
+    descricao: "Microserviço de gerenciamento de resultados de loteria"
   
-  # JWT Configuration from Azure Key Vault
+  # Configuração JWT adicional
   jwt:
-    # Fallback para GitHub Secrets se Azure Key Vault não disponível
-    signing-key: ${conexao-de-sorte-jwt-signing-key:${JWT_SIGNING_KEY:}}
-    verification-key: ${conexao-de-sorte-jwt-verification-key:${JWT_VERIFICATION_KEY:}}
-    issuer: ${conexao-de-sorte-jwt-issuer:https://resultados.conexaodesorte.com.br}
-    audience: ${conexao-de-sorte-jwt-audience:conexao-de-sorte-resultados}
-    expiration: ${conexao-de-sorte-jwt-expiration:86400}
+    # Chaves para validação (não geração)
+    chave-assinatura: ${conexao-de-sorte-jwt-signing-key:${JWT_SIGNING_KEY:}}
+    chave-verificacao: ${conexao-de-sorte-jwt-verification-key:${JWT_VERIFICATION_KEY:}}
+    id-chave: ${conexao-de-sorte-jwt-key-id:${JWT_KEY_ID:}}
+    segredo: ${conexao-de-sorte-jwt-secret:${JWT_SECRET:}}
+    emissor: https://conexaodesorte.com.br
+    audiencia: conexao-de-sorte-frontend-app
+    algoritmo: RS256
+    # Configurações específicas para consumo de tokens
+    validacao:
+      habilitado: true
+      modo-estrito: true
+      requer-expiracao: true
+      desvio-relogio: PT30S
 
-  # Redis Configuration from Azure Key Vault
-  redis:
-    url: ${conexao-de-sorte-redis-url:redis://redis:6379}
-    password: ${conexao-de-sorte-redis-password:${REDIS_PASSWORD:}}
-    timeout: 2000ms
-    
+  # Configuração de Criptografia
+  criptografia:
+    chave-mestra: ${conexao-de-sorte-encryption-master-key:${ENCRYPTION_MASTER_KEY:}}
+    algoritmo: AES-256-GCM
+    rotacao-chaves: P30D # 30 dias
+
   # Cache Configuration
   cache:
-    enabled: true
+    habilitado: true
     ttl:
       resultados: PT5M
       ranking: PT1H
       estatisticas: PT10M
 
   # Rate Limiting
-  rate-limit:
-    requests-per-minute: 100
-    burst-capacity: 50
+  limite-taxa:
+    requisicoes-por-minuto: 100
+    capacidade-rajada: 50
 
 # ===== AZURE LOGGING =====
 logging:
@@ -108,14 +141,14 @@ management:
       show-details: when_authorized
       show-components: always
   health:
-    azure-keyvault:
+    keyvault:
       enabled: true
     db:
       enabled: true
     redis:
       enabled: true
 
-# ===== AZURE CUSTOM PROPERTIES =====
+# ===== CONFIGURAÇÕES CUSTOMIZADAS AZURE =====
 azure:
   keyvault:
     enabled: ${AZURE_KEYVAULT_ENABLED:true}
