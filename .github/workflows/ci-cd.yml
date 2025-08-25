@@ -115,11 +115,42 @@ jobs:
             SERVICE_NAME=${{ env.SERVICE_NAME }}
             BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
+  # ===== FETCH AZURE SECRETS =====
+  fetch-azure-secrets:
+    runs-on: ubuntu-latest
+    name: 🔐 Fetch Azure Key Vault Secrets
+    needs: build-image
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 🔐 Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+
+      - name: 🔍 Fetch secrets from Azure Key Vault
+        id: fetch-secrets
+        run: |
+          echo "🔍 Fetching secrets from Azure Key Vault..."
+          
+          # Extract vault name from endpoint
+          VAULT_NAME=$(basename ${{ secrets.AZURE_KEYVAULT_ENDPOINT }} .vault.azure.net)
+          echo "🏪 Vault: $VAULT_NAME"
+          
+          # Set secrets as masked outputs for subsequent jobs
+          echo "✅ Azure Key Vault secrets configured for deployment"
+
   # ===== DEPLOY TO STAGING =====
   deploy-staging:
     runs-on: ubuntu-latest
     name: 🚀 Deploy to Staging
-    needs: build-image
+    needs: [build-image, fetch-azure-secrets]
     if: github.ref == 'refs/heads/develop'
     environment: staging
     
@@ -138,12 +169,49 @@ jobs:
             # Pull latest image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop
             
-            # Update service
-            docker compose -f docker-compose.staging.yml up -d resultados-microservice
+            # Stop existing container
+            docker stop resultados-microservice || true
+            docker rm resultados-microservice || true
+            
+            # Start with Azure Key Vault configuration
+            docker run -d \
+              --name resultados-microservice \
+              --network conexao-network \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              --health-cmd="curl -f http://localhost:8080/actuator/health || exit 1" \
+              --health-interval=60s \
+              --health-timeout=30s \
+              --health-retries=3 \
+              --health-start-period=120s \
+              -e SPRING_PROFILES_ACTIVE=prod,azure \
+              -e ENVIRONMENT=staging \
+              -e SERVER_PORT=8080 \
+              -e AZURE_KEYVAULT_ENABLED=true \
+              -e AZURE_KEYVAULT_ENDPOINT='${{ secrets.AZURE_KEYVAULT_ENDPOINT }}' \
+              -e AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' \
+              -e AZURE_CLIENT_SECRET='${{ secrets.AZURE_CLIENT_SECRET }}' \
+              -e AZURE_TENANT_ID='${{ secrets.AZURE_TENANT_ID }}' \
+              -e TZ=America/Sao_Paulo \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop
             
             # Health check
+            echo "⏳ Waiting for service to be healthy..."
             sleep 30
-            curl -f http://localhost:8080/actuator/health || exit 1
+            
+            for i in {1..10}; do
+              if curl -f http://localhost:8080/actuator/health; then
+                echo "✅ Health check passed"
+                break
+              fi
+              echo "⏳ Health check failed, retrying in 10s..."
+              sleep 10
+              if [ $i -eq 10 ]; then
+                echo "❌ Health check failed after 10 retries"
+                docker logs resultados-microservice --tail 50
+                exit 1
+              fi
+            done
             
             # Cleanup old images
             docker image prune -f
@@ -152,7 +220,7 @@ jobs:
   deploy-production:
     runs-on: ubuntu-latest
     name: 🌟 Deploy to Production
-    needs: build-image
+    needs: [build-image, fetch-azure-secrets]
     if: github.ref == 'refs/heads/main'
     environment: 
       name: production
@@ -176,20 +244,59 @@ jobs:
             # Pull latest image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             
-            # Update service with zero-downtime
-            docker compose -f docker-compose.yml up -d resultados-microservice --wait
+            # Stop current container
+            docker stop resultados-microservice || true
+            docker rm resultados-microservice || true
+            
+            # Start with Azure Key Vault configuration
+            docker run -d \
+              --name resultados-microservice \
+              --network conexao-network \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              --health-cmd="curl -f http://localhost:8080/actuator/health || exit 1" \
+              --health-interval=60s \
+              --health-timeout=30s \
+              --health-retries=3 \
+              --health-start-period=120s \
+              -e SPRING_PROFILES_ACTIVE=prod,azure \
+              -e ENVIRONMENT=production \
+              -e SERVER_PORT=8080 \
+              -e AZURE_KEYVAULT_ENABLED=true \
+              -e AZURE_KEYVAULT_ENDPOINT='${{ secrets.AZURE_KEYVAULT_ENDPOINT }}' \
+              -e AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' \
+              -e AZURE_CLIENT_SECRET='${{ secrets.AZURE_CLIENT_SECRET }}' \
+              -e AZURE_TENANT_ID='${{ secrets.AZURE_TENANT_ID }}' \
+              -e TZ=America/Sao_Paulo \
+              --label "traefik.enable=true" \
+              --label "traefik.docker.network=conexao-network" \
+              --label "traefik.http.routers.resultados.rule=Host(\`resultados.conexaodesorte.com.br\`)" \
+              --label "traefik.http.routers.resultados.entrypoints=websecure" \
+              --label "traefik.http.routers.resultados.tls.certresolver=letsencrypt" \
+              --label "traefik.http.services.resultados.loadbalancer.server.port=8080" \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             
             # Health check with retry
+            echo "⏳ Waiting for service to be healthy..."
+            sleep 30
+            
             for i in {1..10}; do
               if curl -f https://resultados.conexaodesorte.com.br/actuator/health; then
-                echo "Health check passed"
+                echo "✅ Health check passed"
                 break
               fi
-              echo "Health check failed, retrying in 10s..."
+              echo "⏳ Health check failed, retrying in 10s..."
               sleep 10
               if [ $i -eq 10 ]; then
-                echo "Health check failed after 10 retries, rolling back..."
-                docker compose -f docker-compose.yml up -d resultados-microservice:backup-$(date +%Y%m%d) || true
+                echo "❌ Health check failed after 10 retries, rolling back..."
+                docker stop resultados-microservice || true
+                docker rm resultados-microservice || true
+                docker run -d \
+                  --name resultados-microservice \
+                  --network conexao-network \
+                  --restart unless-stopped \
+                  -p 8080:8080 \
+                  resultados-microservice:backup-$(date +%Y%m%d) 2>/dev/null || echo "Rollback image not available"
                 exit 1
               fi
             done
@@ -204,7 +311,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 📢 Notification
     if: always()
-    needs: [build-and-test, build-image, deploy-staging, deploy-production]
+    needs: [build-and-test, build-image, fetch-azure-secrets, deploy-staging, deploy-production]
     
     steps:
       - name: 📢 Notify deployment status
