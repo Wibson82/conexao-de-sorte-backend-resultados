@@ -182,10 +182,10 @@ public class ResultadoController {
         @ApiResponse(responseCode = "400", description = "Data inválida")
     })
     @GetMapping(value = "/horarios", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Flux<String> buscarHorariosPorData(
+    public Mono<java.util.List<String>> buscarHorariosPorData(
             @Parameter(description = "Data para buscar horários", example = "2024-01-15")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data
     ) {
-        return service.buscarHorariosPorData(data);
+        return service.buscarHorariosPorData(data).collectList();
     }
 }
