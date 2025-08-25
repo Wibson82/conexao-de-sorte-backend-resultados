@@ -29,12 +29,14 @@ O repositório `conexao-de-sorte/resultados-microservice` não existe no GitHub 
    - O `GITHUB_TOKEN` deve ter permissões para `packages:write`
    - Verificar se o repositório tem acesso ao GHCR habilitado
 
-4. **Alternativa - Ajustar nome da imagem:**
+4. **✅ Solução Aplicada - Nome da imagem corrigido:**
    ```yaml
    env:
      REGISTRY: ghcr.io
-     IMAGE_NAME: ${{ github.repository }}/resultados-microservice
+     IMAGE_NAME: ${{ github.repository }}
    ```
+   
+   Agora o workflow usa automaticamente o nome do repositório GitHub atual (`Wibson82/conexao-de-sorte-backend-resultados`).
 
 ## ⚠️ Variáveis não definidas no Dockerfile
 

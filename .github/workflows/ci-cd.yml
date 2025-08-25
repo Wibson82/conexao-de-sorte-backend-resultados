@@ -20,7 +20,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: conexao-de-sorte/resultados-microservice
+  IMAGE_NAME: ${{ github.repository }}
   SERVICE_NAME: resultados
 
 # Controle de concorrência por ambiente para evitar deployments simultâneos
