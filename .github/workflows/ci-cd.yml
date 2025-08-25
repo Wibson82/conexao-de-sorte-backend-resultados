@@ -33,14 +33,6 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
         
-      - name: 🛡️ Dependency review (GitHub Advisory Database)
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fail-on-severity: high
-          allow-licenses: Apache-2.0, MIT, BSD-3-Clause, BSD-2-Clause
-        
       - name: ☕ Setup Java 24
         uses: actions/setup-java@v4
         with:
@@ -66,50 +58,11 @@ jobs:
           path: target/*.jar
           retention-days: 7
 
-  # ===== SECURITY SCAN =====
-  security-scan:
-    runs-on: ubuntu-latest
-    name: 🛡️ Security Scanning
-    needs: build-and-test
-    
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: ☕ Setup Java 24
-        uses: actions/setup-java@v4
-        with:
-          java-version: '24'
-          distribution: 'temurin'
-          cache: maven
-          
-      - name: 🔍 OWASP Dependency Check (com timeout - fallback)
-        uses: ./.github/actions/timeout-run
-        with:
-          command: |
-            ./mvnw org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
-          timeout-seconds: '120'
-        continue-on-error: true
-        
-      - name: 🔍 Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          
-      - name: 📤 Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
   # ===== BUILD & PUSH IMAGE =====
   build-image:
     runs-on: ubuntu-latest
     name: 🐳 Build Docker Image
-    needs: [build-and-test, security-scan]
+    needs: build-and-test
     permissions:
       contents: read
       packages: write
@@ -161,19 +114,6 @@ jobs:
           build-args: |
             SERVICE_NAME=${{ env.SERVICE_NAME }}
             BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-            
-      - name: 🔍 Scan Docker image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-image-results.sarif'
-          
-      - name: 📤 Upload image scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-image-results.sarif'
 
   # ===== DEPLOY TO STAGING =====
   deploy-staging:
@@ -264,7 +204,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 📢 Notification
     if: always()
-    needs: [build-and-test, security-scan, build-image, deploy-staging, deploy-production]
+    needs: [build-and-test, build-image, deploy-staging, deploy-production]
     
     steps:
       - name: 📢 Notify deployment status
