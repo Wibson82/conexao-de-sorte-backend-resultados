@@ -1,0 +1,76 @@
+# 🤖 Configuração do Dependabot para verificação automática de vulnerabilidades
+# Utiliza o GitHub Advisory Database para detectar vulnerabilidades em dependências Maven
+
+version: 2
+updates:
+  # ===== DEPENDÊNCIAS MAVEN =====
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependabot"
+      - "segurança"
+      - "dependências"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    assignees:
+      - "Wibson82"
+    # Estratégia de versionamento semântico
+    versioning-strategy: "increase"
+    # Permitir apenas atualizações de segurança para dependências críticas
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Ignorar atualizações de major version para dependências críticas
+    ignore:
+      - dependency-name: "org.springframework.boot"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
+
+  # ===== ACTIONS DO GITHUB =====
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependabot"
+      - "github-actions"
+      - "ci-cd"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+    assignees:
+      - "Wibson82"
+
+  # ===== DOCKER =====
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependabot"
+      - "docker"
+      - "segurança"
+    commit-message:
+      prefix: "chore(docker)"
+      include: "scope"
+    assignees:
+      - "Wibson82"

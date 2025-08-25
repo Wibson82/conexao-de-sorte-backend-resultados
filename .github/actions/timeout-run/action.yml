@@ -1,5 +1,5 @@
 name: 'timeout-run'
-description: 'Executa um comando com timeout e marca como falha se exceder o tempo especificado, então proceed to next step'
+description: 'Executa um comando com timeout e marca como falha se exceder o tempo especificado, então prossegue para o próximo step'
 inputs:
   command:
     description: 'Comando shell a ser executado'
@@ -11,15 +11,26 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: 'Run command with timeout'
+    - name: 'Executar comando com timeout'
       shell: bash
       run: |
         set -euo pipefail
 
-        COMMAND="$1"
-        TIMEOUT_SECONDS=${INPUT_TIMEOUT_SECONDS:-60}
+        COMANDO="${{ inputs.command }}"
+        TIMEOUT_SEGUNDOS="${{ inputs.timeout-seconds }}"
 
-        echo "Executando com timeout de ${TIMEOUT_SECONDS}s: ${INPUT_COMMAND}"
+        echo "🔄 Executando com timeout de ${TIMEOUT_SEGUNDOS}s: ${COMANDO}"
 
-        # Ejecuta o comando em background e espera pelo timeout
-        timeout "$TIMEOUT_SECONDS" bash -c "${INPUT_COMMAND}"
+        # Executa o comando com timeout especificado
+        if timeout "${TIMEOUT_SEGUNDOS}" bash -c "${COMANDO}"; then
+          echo "✅ Comando executado com sucesso"
+        else
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "⏰ Timeout atingido após ${TIMEOUT_SEGUNDOS}s - marcando como falha e prosseguindo"
+            exit 1
+          else
+            echo "❌ Comando falhou com código de saída: $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+        fi
