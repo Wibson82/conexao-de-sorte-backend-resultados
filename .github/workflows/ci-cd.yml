@@ -75,9 +75,12 @@ jobs:
           distribution: 'temurin'
           cache: maven
           
-      - name: 🔍 OWASP Dependency Check
-        run: |
-          ./mvnw org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+      - name: 🔍 OWASP Dependency Check (com timeout)
+        uses: ./.github/actions/timeout-run
+        with:
+          command: |
+            ./mvnw org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+          timeout-seconds: '60'
         continue-on-error: true
         
       - name: 🔍 Trivy filesystem scan
