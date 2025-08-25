@@ -23,6 +23,11 @@ env:
   IMAGE_NAME: conexao-de-sorte/resultados-microservice
   SERVICE_NAME: resultados
 
+# Controle de concorrência por ambiente para evitar deployments simultâneos
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.environment || 'auto' }}
+  cancel-in-progress: false
+
 jobs:
   # ===== BUILD & TEST =====
   build-and-test:
@@ -64,8 +69,10 @@ jobs:
     name: 🐳 Build Docker Image
     needs: build-and-test
     permissions:
+      id-token: write
       contents: read
       packages: write
+      attestations: write
       
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
@@ -93,8 +100,11 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix={{branch}}-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{branch}}-{{date 'YYYYMMDD-HHmmss'}}
+            type=raw,value=prod-latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=teste-latest,enable=${{ github.ref == 'refs/heads/develop' }}
           labels: |
             org.opencontainers.image.title=Resultados Microservice
             org.opencontainers.image.description=Lottery results management microservice
@@ -109,42 +119,66 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             SERVICE_NAME=${{ env.SERVICE_NAME }}
             BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            VCS_REF=${{ github.sha }}
+
+  # ===== SIGN IMAGE WITH COSIGN =====
+  sign-image:
+    runs-on: ubuntu-latest
+    name: ✍️ Sign Container Image
+    needs: build-image
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+    
+    steps:
+      - name: 🔐 Install Cosign
+        uses: sigstore/cosign-installer@v3
+        
+      - name: ✍️ Sign image with keyless signing
+        run: |
+          echo "✍️ Signing image with keyless cosign..."
+          cosign sign --yes ${{ needs.build-image.outputs.image-digest }}
+          echo "✅ Image signed successfully"
 
   # ===== FETCH AZURE SECRETS =====
   fetch-azure-secrets:
     runs-on: ubuntu-latest
     name: 🔐 Fetch Azure Key Vault Secrets
-    needs: build-image
+    needs: [build-image, sign-image]
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
-      - name: 🔐 Login to Azure
-        uses: azure/login@v1
+      - name: 🔐 Login to Azure (OIDC)
+        uses: azure/login@v2
         with:
-          creds: |
-            {
-              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
-              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
-            }
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🔍 Fetch secrets from Azure Key Vault
+      - name: 🔍 Validate Azure Key Vault Connection
         id: fetch-secrets
         run: |
-          echo "🔍 Fetching secrets from Azure Key Vault..."
+          echo "🔍 Validating Azure Key Vault connection (OIDC)..."
           
-          # Extract vault name from endpoint
-          VAULT_NAME=$(basename ${{ secrets.AZURE_KEYVAULT_ENDPOINT }} .vault.azure.net)
-          echo "🏪 Vault: $VAULT_NAME"
+          # Extract vault name from endpoint (masked)
+          echo "🏪 Vault: [VAULT_NAME_MASKED_FOR_SECURITY]"
           
-          # Set secrets as masked outputs for subsequent jobs
-          echo "✅ Azure Key Vault secrets configured for deployment"
+          # Validate connection without exposing values
+          VAULT_NAME=$(echo "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" | sed 's|https://||' | sed 's|\.vault\.azure\.net/||')
+          az keyvault secret list --vault-name "$VAULT_NAME" --query 'length([])' -o tsv > /dev/null
+          
+          echo "✅ Azure Key Vault secrets validated for deployment"
 
   # ===== DEPLOY TO STAGING =====
   deploy-staging:
@@ -184,14 +218,11 @@ jobs:
               --health-timeout=30s \
               --health-retries=3 \
               --health-start-period=120s \
-              -e SPRING_PROFILES_ACTIVE=prod,azure \
+              -v /run/secrets:/run/secrets:ro \
+              -e SPRING_PROFILES_ACTIVE=staging,azure \
               -e ENVIRONMENT=staging \
               -e SERVER_PORT=8080 \
-              -e AZURE_KEYVAULT_ENABLED=true \
-              -e AZURE_KEYVAULT_ENDPOINT='${{ secrets.AZURE_KEYVAULT_ENDPOINT }}' \
-              -e AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' \
-              -e AZURE_CLIENT_SECRET='${{ secrets.AZURE_CLIENT_SECRET }}' \
-              -e AZURE_TENANT_ID='${{ secrets.AZURE_TENANT_ID }}' \
+              -e SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/ \
               -e TZ=America/Sao_Paulo \
               ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop
             
@@ -259,14 +290,11 @@ jobs:
               --health-timeout=30s \
               --health-retries=3 \
               --health-start-period=120s \
+              -v /run/secrets:/run/secrets:ro \
               -e SPRING_PROFILES_ACTIVE=prod,azure \
               -e ENVIRONMENT=production \
               -e SERVER_PORT=8080 \
-              -e AZURE_KEYVAULT_ENABLED=true \
-              -e AZURE_KEYVAULT_ENDPOINT='${{ secrets.AZURE_KEYVAULT_ENDPOINT }}' \
-              -e AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' \
-              -e AZURE_CLIENT_SECRET='${{ secrets.AZURE_CLIENT_SECRET }}' \
-              -e AZURE_TENANT_ID='${{ secrets.AZURE_TENANT_ID }}' \
+              -e SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/ \
               -e TZ=America/Sao_Paulo \
               --label "traefik.enable=true" \
               --label "traefik.docker.network=conexao-network" \

@@ -11,6 +11,7 @@ spring:
     activate:
       on-profile: azure
     import:
+      - "optional:configtree:/run/secrets/"
       - "optional:classpath:application-prod.yml"
 
   # ===== SPRING CLOUD AZURE =====
@@ -36,9 +37,9 @@ spring:
   # Primary: Azure Key Vault secrets
   # Fallback: Environment variables from container
   r2dbc:
-    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo}
-    username: ${conexao-de-sorte-database-username:${DATABASE_USERNAME:resultados_user}}
-    password: ${conexao-de-sorte-database-password:${DATABASE_PASSWORD:}}
+    url: ${DB_URL:r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=false}
+    username: ${DB_USER:resultados_user}
+    password: ${DB_PASSWORD:}
     pool:
       enabled: true
       initial-size: 10
@@ -49,9 +50,9 @@ spring:
   # ===== FLYWAY CONFIGURATION (JDBC para migrations) =====
   flyway:
     enabled: true
-    url: ${conexao-de-sorte-database-url:jdbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo}
-    user: ${conexao-de-sorte-database-username:${DATABASE_USERNAME:resultados_user}}
-    password: ${conexao-de-sorte-database-password:${DATABASE_PASSWORD:}}
+    url: ${DB_URL:jdbc:mysql://conexao-mysql:3306/conexao_de_sorte}
+    user: ${DB_USER:resultados_user}
+    password: ${DB_PASSWORD:}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
@@ -59,9 +60,9 @@ spring:
   # ===== REDIS CONFIGURATION =====
   data:
     redis:
-      host: ${conexao-de-sorte-redis-host:${REDIS_HOST:redis}}
-      port: ${conexao-de-sorte-redis-port:${REDIS_PORT:6379}}
-      password: ${conexao-de-sorte-redis-password:${REDIS_PASSWORD:}}
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       timeout: 2000ms
       lettuce:
         pool:
@@ -89,10 +90,10 @@ aplicacao:
   # Configuração JWT adicional
   jwt:
     # Chaves para validação (não geração)
-    chave-assinatura: ${conexao-de-sorte-jwt-signing-key:${JWT_SIGNING_KEY:}}
-    chave-verificacao: ${conexao-de-sorte-jwt-verification-key:${JWT_VERIFICATION_KEY:}}
-    id-chave: ${conexao-de-sorte-jwt-key-id:${JWT_KEY_ID:}}
-    segredo: ${conexao-de-sorte-jwt-secret:${JWT_SECRET:}}
+    chave-assinatura: ${JWT_SIGNING_KEY:}
+    chave-verificacao: ${JWT_VERIFICATION_KEY:}
+    id-chave: ${JWT_KEY_ID:}
+    segredo: ${JWT_SECRET:}
     emissor: https://conexaodesorte.com.br
     audiencia: conexao-de-sorte-frontend-app
     algoritmo: RS256
@@ -105,7 +106,7 @@ aplicacao:
 
   # Configuração de Criptografia
   criptografia:
-    chave-mestra: ${conexao-de-sorte-encryption-master-key:${ENCRYPTION_MASTER_KEY:}}
+    chave-mestra: ${ENCRYPTION_MASTER_KEY:}
     algoritmo: AES-256-GCM
     rotacao-chaves: P30D # 30 dias
 
@@ -130,16 +131,35 @@ logging:
     '[org.springframework.cloud.azure]': INFO
     '[br.tec.facilitaservicos.resultados]': INFO
 
-# ===== MANAGEMENT ENDPOINTS =====
+# ===== MANAGEMENT ENDPOINTS (HARDENED) =====
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics,prometheus
+        exclude: env,configprops,beans,conditions,mappings,threaddump,heapdump,startup
+      base-path: /actuator
+      cors:
+        allowed-origins: "https://monitoring.conexaodesorte.com.br"
+        allowed-methods: GET
   endpoint:
     health:
       show-details: when_authorized
-      show-components: always
+      show-components: when_authorized
+    env:
+      enabled: false
+    configprops:
+      enabled: false
+    beans:
+      enabled: false
+    conditions:
+      enabled: false
+    mappings:
+      enabled: false
+    threaddump:
+      enabled: false
+    heapdump:
+      enabled: false
   health:
     keyvault:
       enabled: true
@@ -147,6 +167,10 @@ management:
       enabled: true
     redis:
       enabled: true
+  # Security for actuator endpoints
+  security:
+    enabled: true
+    roles: ACTUATOR
 
 # ===== CONFIGURAÇÕES CUSTOMIZADAS AZURE =====
 azure:
