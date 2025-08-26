@@ -2,14 +2,14 @@ name: 🎯 Resultados Microservice - CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
     paths: ['src/**', 'pom.xml', 'Dockerfile', '.github/workflows/**']
   pull_request:
     branches: [ main ]
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment'
+        description: 'Destino do deploy'
         required: false
         default: 'auto'
         type: choice
@@ -22,7 +22,7 @@ env:
   TZ: America/Sao_Paulo
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.environment || 'auto' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'auto' }}
   cancel-in-progress: false
 
 jobs:
@@ -97,7 +97,6 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value={{branch}}-{{date 'YYYYMMDD-HHmmss'}}
             type=raw,value=prod-latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=teste-latest,enable=${{ github.ref == 'refs/heads/develop' }}
           labels: |
             org.opencontainers.image.title=Resultados Microservice
             org.opencontainers.image.description=Lottery results management microservice
@@ -122,13 +121,12 @@ jobs:
             VCS_REF=${{ github.sha }}
             VERSION=1.0.0
 
-  # Assinatura OIDC keyless usando DIGEST (robusto)
   sign-image:
     runs-on: ubuntu-latest
     name: ✍️ Sign & Verify (OIDC keyless por digest)
     needs: build-image
     permissions:
-      id-token: write      # necessário para OIDC keyless
+      id-token: write
       contents: read
       packages: write
     steps:
@@ -137,7 +135,6 @@ jobs:
         run: |
           set -euo pipefail
           IMG="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}@${{ needs.build-image.outputs.image-digest }}"
-          echo "image=$IMG" >> "$GITHUB_OUTPUT"
           echo "lower=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
@@ -145,7 +142,7 @@ jobs:
         with:
           cosign-release: v2.5.2
 
-      - name: Login GHCR (pull to confirm)
+      - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -158,24 +155,21 @@ jobs:
       - name: Sign (keyless)
         env:
           COSIGN_EXPERIMENTAL: "1"
-        run: |
-          set -euo pipefail
-          cosign sign --yes "${{ steps.ref.outputs.lower }}"
+        run: cosign sign --yes "${{ steps.ref.outputs.lower }}"
 
-      - name: Verify (issuer + identidade do repositório)
+      - name: Verify (issuer + identidade do repo/branch main)
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          set -euo pipefail
           cosign verify --keyless \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/heads/(main|develop)$" \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/heads/main$" \
             "${{ steps.ref.outputs.lower }}"
 
   deploy-staging:
     needs: [build-image, sign-image]
     runs-on: [self-hosted, hostinger-runner]
-    if: github.ref == 'refs/heads/develop'
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'staging'
     name: 🚀 Deploy to Staging (self-hosted, OIDC)
     permissions:
       id-token: write
@@ -191,7 +185,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Resolve Key Vault + carregar segredos
+      - name: Resolver Key Vault + carregar segredos
         id: kv
         run: |
           set -euo pipefail
@@ -231,8 +225,8 @@ jobs:
       - name: Pull & Run (staging)
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}:develop"
-          docker pull "$IMAGE"
+          IMAGE="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}@${{ needs.build-image.outputs.image-digest }}"
+          docker pull "$IMAGE" || true
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
 
@@ -261,8 +255,7 @@ jobs:
 
           for i in $(seq 1 10); do
             if curl -fsS http://localhost:8080/actuator/health >/dev/null; then
-              echo "✅ healthy"
-              break
+              echo "✅ healthy"; break
             fi
             echo "⏳ aguardando ($i/10)"; sleep 10
             if [ "$i" -eq 10 ]; then
@@ -279,7 +272,7 @@ jobs:
   deploy-production:
     needs: [build-image, sign-image]
     runs-on: [self-hosted, hostinger-runner]
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
     name: 🌟 Deploy to Production (self-hosted, OIDC)
     permissions:
       id-token: write
@@ -295,7 +288,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Resolve Key Vault + carregar segredos
+      - name: Resolver Key Vault + carregar segredos
         run: |
           set -euo pipefail
           VAULT="${{ secrets.AZURE_KEYVAULT_NAME }}"
@@ -334,10 +327,10 @@ jobs:
       - name: Pull & Run (production)
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}:latest"
+          IMAGE="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}@${{ needs.build-image.outputs.image-digest }}"
 
           docker tag resultados-microservice resultados-microservice:backup-$(date +%Y%m%d-%H%M%S) || true
-          docker pull "$IMAGE"
+          docker pull "$IMAGE" || true
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
 
@@ -364,7 +357,7 @@ jobs:
             -e ENC_MASTER_PASSWORD_PATH="/run/secrets/encryption_master_password" \
             --label "traefik.enable=true" \
             --label "traefik.docker.network=conexao-network" \
-            --label "traefik.http.routers.resultados.rule=Host(\`resultados.conexaodesorte.com.br\`)" \
+            --label "traefik.http.routers.resultados.rule=Host(`resultados.conexaodesorte.com.br`)" \
             --label "traefik.http.routers.resultados.entrypoints=websecure" \
             --label "traefik.http.routers.resultados.tls.certresolver=letsencrypt" \
             --label "traefik.http.services.resultados.loadbalancer.server.port=8080" \
@@ -372,8 +365,7 @@ jobs:
 
           for i in $(seq 1 10); do
             if curl -fsS https://resultados.conexaodesorte.com.br/actuator/health >/dev/null; then
-              echo "✅ healthy"
-              break
+              echo "✅ healthy"; break
             fi
             echo "⏳ aguardando ($i/10)"; sleep 10
             if [ "$i" -eq 10 ]; then
