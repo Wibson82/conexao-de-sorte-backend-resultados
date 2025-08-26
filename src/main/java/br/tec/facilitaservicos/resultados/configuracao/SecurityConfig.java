@@ -8,9 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
-import org.springframework.security.config.web.server.ServerHttpSecurity.FormLoginSpec;
-import org.springframework.security.config.web.server.ServerHttpSecurity.HttpBasicSpec;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -140,7 +137,7 @@ public class SecurityConfig {
 
             // Configurar tratamento de exceções de segurança
             .exceptionHandling(exceptions -> exceptions
-                .authenticationEntryPoint((exchange, ex) -> {
+                .authenticationEntryPoint((exchange, _) -> {
                     var response = exchange.getResponse();
                     response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
                     response.getHeaders().add(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON);
@@ -150,7 +147,7 @@ public class SecurityConfig {
                     var buffer = response.bufferFactory().wrap(body.getBytes());
                     return response.writeWith(reactor.core.publisher.Mono.just(buffer));
                 })
-                .accessDeniedHandler((exchange, denied) -> {
+                .accessDeniedHandler((exchange, _) -> {
                     var response = exchange.getResponse();
                     response.setStatusCode(org.springframework.http.HttpStatus.FORBIDDEN);
                     response.getHeaders().add(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON);

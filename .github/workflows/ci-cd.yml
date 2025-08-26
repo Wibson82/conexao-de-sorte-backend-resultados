@@ -153,10 +153,10 @@ jobs:
       - name: ✍️ Sign image with keyless signing
         run: |
           echo "✍️ Signing image with keyless cosign..."
-          # Use the full image reference with digest
-          IMAGE_WITH_DIGEST="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-image.outputs.image-digest }}"
-          echo "Signing image: $IMAGE_WITH_DIGEST"
-          cosign sign --yes "$IMAGE_WITH_DIGEST"
+          # Use the first tag from the build output (more reliable than digest)
+          IMAGE_TAG=$(echo '${{ needs.build-image.outputs.image-tags }}' | head -n1)
+          echo "Signing image: $IMAGE_TAG"
+          cosign sign --yes "$IMAGE_TAG"
           echo "✅ Image signed successfully"
 
   # ===== FETCH AZURE SECRETS =====
