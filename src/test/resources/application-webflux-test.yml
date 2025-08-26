@@ -1,0 +1,31 @@
+# Configuração para testes @WebFluxTest
+# Evita conflitos com R2DBC e outras dependências desnecessárias para testes web
+
+spring:
+  data:
+    r2dbc:
+      repositories:
+        enabled: false
+  # Desabilitar autoconfiguration não necessária para testes web
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.r2dbc.R2dbcDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.r2dbc.R2dbcRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+
+# Rate limiting para testes
+resilience4j:
+  ratelimiter:
+    instances:
+      resultados-service:
+        limit-for-period: 2
+        limit-refresh-period: 10s
+        timeout-duration: 0
+
+# Logging para debug durante testes (opcional)
+logging:
+  level:
+    br.tec.facilitaservicos: DEBUG
+    org.springframework.test: DEBUG
+    io.github.resilience4j: DEBUG
