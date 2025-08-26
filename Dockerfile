@@ -76,33 +76,11 @@ WORKDIR /app
 # Copiar JAR da aplicação do estágio de build
 COPY --from=builder --chown=appuser:appgroup /build/target/*.jar app.jar
 
-# Configurar JVM otimizada para containers e processamento de dados
-ENV JAVA_TOOL_OPTIONS="\
-    -server \
-    -XX:+UseContainerSupport \
-    -XX:+UnlockExperimentalVMOptions \
-    -XX:+UseZGC \
-    -XX:+UnlockDiagnosticVMOptions \
-    -XX:+UseTransparentHugePages \
-    -XX:+OptimizeStringConcat \
-    -XX:+UseStringDeduplication \
-    -XX:+FlightRecorder \
-    -Xms256m \
-    -Xmx1024m \
-    -XX:MaxRAMPercentage=75.0 \
-    -XX:+HeapDumpOnOutOfMemoryError \
-    -XX:HeapDumpPath=/tmp/heapdump.hprof \
-    -Djava.security.egd=file:/dev/./urandom \
-    -Djava.awt.headless=true \
-    -Dfile.encoding=UTF-8 \
-    -Duser.timezone=America/Sao_Paulo"
+## JVM otimizada para containers: flags removidas para compatibilidade total com Java 24
+# As flags e perfis devem ser definidos externamente via workflow/deploy
 
 # Variáveis de ambiente da aplicação
-ENV SPRING_PROFILES_ACTIVE=prod
-ENV SPRING_CONFIG_LOCATION=classpath:/application.yml
-ENV SERVER_PORT=8082
-ENV MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus
-ENV LOGGING_LEVEL_ROOT=INFO
+
 
 # Expor porta da aplicação
 EXPOSE 8082
@@ -129,17 +107,10 @@ LABEL org.opencontainers.image.source="https://github.com/conexaodesorte/resulta
 ENTRYPOINT ["dumb-init", "--", "java"]
 CMD ["-jar", "app.jar"]
 
+
 # === ESTÁGIO 3: DEBUG (Opcional) ===
 FROM runtime AS debug
 
-# Configurar debug remoto
-ENV JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS \
-    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 \
-    -Dspring.profiles.active=dev \
-    -Dlogging.level.br.tec.facilitaservicos=DEBUG"
-
-# Expor porta de debug
+# Configurar debug remoto (apenas para desenvolvimento, sem perfil fixo)
 EXPOSE 5005
-
-# Comando para debug
 CMD ["-jar", "app.jar"]

@@ -277,6 +277,9 @@ jobs:
             --health-cmd="curl -f http://localhost:8080/actuator/health || exit 1" \
             --health-interval=30s --health-timeout=10s --health-retries=3 --health-start-period=60s \
             -v "${SECRETS_DIR}":/run/secrets:ro \
+            -e JAVA_TOOL_OPTIONS="" \
+            -e JDK_JAVA_OPTIONS="" \
+            -e JAVA_OPTS="" \
             -e SPRING_PROFILES_ACTIVE=prod,azure \
             -e ENVIRONMENT=production \
             -e SERVER_PORT=8080 \
