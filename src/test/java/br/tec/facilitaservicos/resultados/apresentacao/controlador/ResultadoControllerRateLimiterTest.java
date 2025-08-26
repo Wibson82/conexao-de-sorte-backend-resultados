@@ -1,0 +1,46 @@
+package br.tec.facilitaservicos.resultados.apresentacao.controlador;
+
+import br.tec.facilitaservicos.resultados.aplicacao.servico.ResultadoService;
+import br.tec.facilitaservicos.resultados.apresentacao.dto.EstatisticasDto;
+import io.github.resilience4j.springboot3.ratelimiter.autoconfigure.RateLimiterAutoConfiguration;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
+
+import static org.mockito.Mockito.when;
+
+@WebFluxTest(controllers = ResultadoController.class)
+@ImportAutoConfiguration(RateLimiterAutoConfiguration.class)
+@TestPropertySource(properties = {
+        "resilience4j.ratelimiter.instances.resultados-service.limit-for-period=2",
+        "resilience4j.ratelimiter.instances.resultados-service.limit-refresh-period=10s",
+        "resilience4j.ratelimiter.instances.resultados-service.timeout-duration=0"
+})
+class ResultadoControllerRateLimiterTest {
+
+    @Autowired
+    private WebTestClient webTestClient;
+
+    @MockBean
+    private ResultadoService service;
+
+    @Test
+    void rateLimiterBlocksExcessiveRequests() {
+        when(service.buscarEstatisticas()).thenReturn(Mono.just(EstatisticasDto.basicas(1L, 1L)));
+
+        for (int i = 0; i < 2; i++) {
+            webTestClient.get().uri("/api/resultados/estatisticas")
+                .exchange()
+                .expectStatus().isOk();
+        }
+
+        webTestClient.get().uri("/api/resultados/estatisticas")
+            .exchange()
+            .expectStatus().isEqualTo(429);
+    }
+}
