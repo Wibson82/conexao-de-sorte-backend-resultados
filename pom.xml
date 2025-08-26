@@ -16,7 +16,7 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>Resultados Microservice</name>
-    <description>Microserviço de resultados de loteria reativo com Spring WebFlux e R2DBC</description>
+    <description>Microserviço de resultados de loteria federal e do jogo do bicho reativo com Spring WebFlux e R2DBC</description>
 
     <properties>
         <java.version>24</java.version>
