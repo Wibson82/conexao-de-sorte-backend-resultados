@@ -7,9 +7,11 @@ import io.github.resilience4j.springboot3.ratelimiter.autoconfigure.RateLimiterA
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
@@ -29,6 +31,7 @@ class ResultadoControllerRateLimiterTest {
     private ResultadoService service;
 
     @Test
+    @WithMockUser
     void rateLimiterBlocksExcessiveRequests() {
         when(service.buscarEstatisticas()).thenReturn(Mono.just(EstatisticasDto.basicas(1L, 1L)));
 

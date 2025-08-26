@@ -22,6 +22,6 @@ public class WebFluxTestConfig {
     @Bean
     @Primary
     public R2dbcMappingContext r2dbcMappingContext() {
-        return new R2dbcMappingContext(NamingStrategy.INSTANCE);
+        return new R2dbcMappingContext();
     }
 }

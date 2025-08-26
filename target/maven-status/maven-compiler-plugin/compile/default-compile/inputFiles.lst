@@ -7,6 +7,7 @@
 /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/dto/PaginacaoDto.java
 /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/dto/RankingDto.java
 /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/apresentacao/dto/ResultadoDto.java
+/Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/AplicacaoProperties.java
 /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/CacheConfig.java
 /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/ObservabilityConfig.java
 /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados/src/main/java/br/tec/facilitaservicos/resultados/configuracao/R2dbcConfig.java
