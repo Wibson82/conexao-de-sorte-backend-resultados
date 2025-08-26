@@ -68,6 +68,29 @@ build-args: |
 ### ✅ Solução Aplicada:
 Removido o parâmetro `-Dmaven.compiler.optimize=true` do Dockerfile, pois é deprecated e não tem efeito no javac moderno.
 
+## 🔴 Erro do Cosign na Assinatura de Imagem
+
+### Erro:
+```
+Error: signing [sha256:...]: accessing entity: GET https://index.docker.io/v2/library/sha256/manifests/...: UNAUTHORIZED: authentication required
+```
+
+### Causa:
+O Cosign estava tentando assinar a imagem usando apenas o digest SHA256, sem o nome completo do registry e repositório.
+
+### ✅ Solução Aplicada:
+
+1. **Adicionado login no GHCR antes da assinatura**
+2. **Corrigido formato da referência da imagem:**
+   ```bash
+   # Antes (incorreto)
+   cosign sign --yes ${{ needs.build-image.outputs.image-digest }}
+   
+   # Depois (correto)
+   IMAGE_WITH_DIGEST="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-image.outputs.image-digest }}"
+   cosign sign --yes "$IMAGE_WITH_DIGEST"
+   ```
+
 ## ⚠️ Warning do Google Guice com Java 24
 
 ### Warning:
