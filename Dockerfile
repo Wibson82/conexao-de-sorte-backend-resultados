@@ -77,7 +77,7 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:appgroup /build/target/*.jar app.jar
 
 # Configurar JVM otimizada para containers e processamento de dados
-ENV JAVA_OPTS="\
+ENV JAVA_TOOL_OPTIONS="\
     -server \
     -XX:+UseContainerSupport \
     -XX:+UnlockExperimentalVMOptions \
@@ -126,14 +126,14 @@ LABEL org.opencontainers.image.url="https://conexaodesorte.com"
 LABEL org.opencontainers.image.source="https://github.com/conexaodesorte/resultados"
 
 # Comando de inicialização com dumb-init para signal handling
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["dumb-init", "--", "java"]
+CMD ["-jar", "app.jar"]
 
 # === ESTÁGIO 3: DEBUG (Opcional) ===
 FROM runtime AS debug
 
 # Configurar debug remoto
-ENV JAVA_OPTS="$JAVA_OPTS \
+ENV JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS \
     -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 \
     -Dspring.profiles.active=dev \
     -Dlogging.level.br.tec.facilitaservicos=DEBUG"
@@ -142,4 +142,4 @@ ENV JAVA_OPTS="$JAVA_OPTS \
 EXPOSE 5005
 
 # Comando para debug
-CMD ["sh", "-c", "echo 'Starting RESULTS service in DEBUG mode on port 5005' && java $JAVA_OPTS -jar app.jar"]
+CMD ["-jar", "app.jar"]
