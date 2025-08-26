@@ -75,8 +75,30 @@ jobs:
           REPO='${{ env.IMAGE_NAME }}'
           echo "image_name_lower=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Docker Buildx
+      - name: Diagnose network connectivity
+        run: |
+          echo "🔍 Diagnosing network connectivity..."
+          curl -I --max-time 10 https://registry-1.docker.io/v2/ || echo "Direct connection failed"
+          curl -I --max-time 10 https://mirror.gcr.io/v2/ || echo "Mirror connection failed"
+          ping -c 3 registry-1.docker.io || echo "Ping failed"
+          echo "Network diagnosis completed"
+
+      - name: Set up Docker Buildx (with retry)
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+          install: true
+        timeout-minutes: 5
+        continue-on-error: true
+        id: buildx_initial
+        
+      - name: Set up Docker Buildx (fallback)
+        if: steps.buildx_initial.outcome == 'failure'  
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+          install: true
+        timeout-minutes: 10
 
       - name: Login to GHCR
         uses: docker/login-action@v3
