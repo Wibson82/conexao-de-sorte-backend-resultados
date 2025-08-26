@@ -61,8 +61,12 @@ Microserviço **100% reativo** para consulta de resultados de loteria, construí
 # Clone o projeto
 cd /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados
 
-# Execute com Docker Compose
-docker-compose up -d
+# Execute com Docker Compose usando arquivo de variáveis
+docker compose --env-file .env.local up -d
+
+# O arquivo `.env.local` deve conter os segredos e **não** deve ser versionado.
+# Alternativamente, utilize [configtree](https://docs.docker.com/compose/config/)
+# ou outra solução de gerenciamento de secrets para carregar as variáveis.
 
 # Ou execute localmente
 mvn spring-boot:run
@@ -73,7 +77,7 @@ mvn spring-boot:run
 - **API**: http://localhost:8082/api/resultados
 - **Swagger UI**: http://localhost:8082/swagger-ui.html
 - **Actuator**: http://localhost:8082/actuator
-- **Grafana**: http://localhost:3001 (admin:admin123!)
+- **Grafana**: http://localhost:3001 (admin/<GF_SECURITY_ADMIN_PASSWORD>)
 - **Prometheus**: http://localhost:9091
 
 ## 📋 Endpoints da API
@@ -116,12 +120,16 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_NAME=conexao_sorte_resultados
 DB_USERNAME=resultados_user
-DB_PASSWORD=resultados_pass123!
+DB_PASSWORD=<DB_PASSWORD>
+MYSQL_ROOT_PASSWORD=<MYSQL_ROOT_PASSWORD>
 
 # Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=redis_pass123!
+REDIS_PASSWORD=<REDIS_PASSWORD>
+
+# Grafana
+GF_SECURITY_ADMIN_PASSWORD=<GF_SECURITY_ADMIN_PASSWORD>
 
 # JWT
 JWT_JWKS_URI=http://localhost:8081/.well-known/jwks.json
@@ -132,6 +140,10 @@ FEATURE_RESULTADOS_MS=true
 FEATURE_ADVANCED_RANKING=true
 FEATURE_STATS_CACHE=true
 ```
+
+> ⚠️ Os valores sensíveis (senhas, tokens) **não** devem ser versionados.
+> Utilize um arquivo `.env.local` carregado com `docker compose --env-file` ou
+> soluções como `configtree` para montar secrets externos com segurança.
 
 ### Profiles Disponíveis
 
@@ -181,14 +193,14 @@ docker run -p 8082:8082 -e FEATURE_RESULTADOS_MS=true resultados-microservice
 ### Docker Compose Completo
 
 ```bash
-# Subir ambiente completo
-docker-compose up -d
+# Subir ambiente completo com variáveis externas
+docker compose --env-file .env.local up -d
 
 # Ver logs
-docker-compose logs -f resultados-service
+docker compose logs -f resultados-service
 
 # Parar ambiente
-docker-compose down
+docker compose down
 ```
 
 ## 🔐 Segurança

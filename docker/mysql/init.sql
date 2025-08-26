@@ -81,7 +81,8 @@ ALTER TABLE resultados
 ANALYZE TABLE resultados;
 
 -- Criar usuário específico para a aplicação (se não existir)
-CREATE USER IF NOT EXISTS 'resultados_user'@'%' IDENTIFIED BY 'resultados_pass123!';
+-- A senha deve ser fornecida via variável de ambiente (ex.: DB_PASSWORD)
+CREATE USER IF NOT EXISTS 'resultados_user'@'%' IDENTIFIED BY '${DB_PASSWORD}';
 
 -- Conceder privilégios específicos
 GRANT SELECT, INSERT, UPDATE, DELETE ON conexao_sorte_resultados.* TO 'resultados_user'@'%';
