@@ -13,15 +13,13 @@ on:
         required: false
         default: 'auto'
         type: choice
-        options:
-          - auto
-          - staging
-          - production
+        options: [auto, staging, production]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   SERVICE_NAME: resultados
+  TZ: America/Sao_Paulo
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.environment || 'auto' }}
@@ -65,8 +63,8 @@ jobs:
       attestations: write
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
-      image-tags: ${{ steps.meta.outputs.tags }}
       image-name-lower: ${{ steps.image_name.outputs.image_name_lower }}
+      image-tags: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
 
@@ -75,8 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           REPO='${{ env.IMAGE_NAME }}'
-          IMG_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
-          echo "image_name_lower=$IMG_LOWER" >> "$GITHUB_OUTPUT"
+          echo "image_name_lower=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -125,83 +122,61 @@ jobs:
             VCS_REF=${{ github.sha }}
             VERSION=1.0.0
 
+  # Assinatura OIDC keyless usando DIGEST (robusto)
   sign-image:
     runs-on: ubuntu-latest
-    name: ✍️ Sign Container Image (keyless)
+    name: ✍️ Sign & Verify (OIDC keyless por digest)
     needs: build-image
     permissions:
-      id-token: write
-      packages: write
+      id-token: write      # necessário para OIDC keyless
       contents: read
+      packages: write
     steps:
-      - name: Login to GHCR
+      - name: Resolve image digest ref
+        id: ref
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}@${{ needs.build-image.outputs.image-digest }}"
+          echo "image=$IMG" >> "$GITHUB_OUTPUT"
+          echo "lower=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v2.5.2
+
+      - name: Login GHCR (pull to confirm)
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve image tag to sign
-        id: resolve_tag
-        run: |
-          set -euo pipefail
-          tags="${{ needs.build-image.outputs.image-tags }}"
-          first=$(echo "$tags" | tr ',' '\n' | sed '/^\s*$/d' | head -n1 | tr -d '[:space:]')
-          if [ -z "$first" ]; then
-            echo "No image tag found from build metadata" >&2
-            exit 1
-          fi
-          if [[ "$first" != *"/"*":"* && "$first" != *"${{ env.REGISTRY }}"* ]]; then
-            PREFIX="${{ env.REGISTRY }}/${{ needs.build-image.outputs.image-name-lower }}"
-            IMAGE="$PREFIX:$first"
-          else
-            IMAGE="$first"
-          fi
-          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
-          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+      - name: Pull digest
+        run: docker pull "${{ steps.ref.outputs.lower }}"
 
-      - name: Pull image to validate existence
-        run: |
-          set -euo pipefail
-          IMAGE="${{ steps.resolve_tag.outputs.image }}"
-          echo "Pulling $IMAGE"
-          docker pull "$IMAGE"
-
-      - name: Install cosign if missing
-        run: |
-          set -euo pipefail
-          if ! command -v cosign >/dev/null 2>&1; then
-            curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
-            chmod +x /usr/local/bin/cosign
-          fi
-
-      - name: Sign image (keyless)
+      - name: Sign (keyless)
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
           set -euo pipefail
-          IMAGE="${{ steps.resolve_tag.outputs.image }}"
-          echo "Signing $IMAGE (keyless)"
-          cosign sign --yes "$IMAGE"
+          cosign sign --yes "${{ steps.ref.outputs.lower }}"
 
-      - name: Verify signature (keyless, with certificate identity constraints)
+      - name: Verify (issuer + identidade do repositório)
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
           set -euo pipefail
-          IMAGE="${{ steps.resolve_tag.outputs.image }}"
-          # Accept certificates issued via GitHub Actions OIDC issuer and allow any identity.
-          # Replace the regexp by a stricter one if you want to restrict identity.
           cosign verify --keyless \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity-regexp ".*" \
-            "$IMAGE"
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/heads/(main|develop)$" \
+            "${{ steps.ref.outputs.lower }}"
 
   deploy-staging:
     needs: [build-image, sign-image]
     runs-on: [self-hosted, hostinger-runner]
     if: github.ref == 'refs/heads/develop'
-    name: 🚀 Deploy to Staging
+    name: 🚀 Deploy to Staging (self-hosted, OIDC)
     permissions:
       id-token: write
       contents: read
@@ -209,64 +184,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC / SP fallback)
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Fetch Key Vault secrets (local)
-        id: fetch_secrets
+      - name: Resolve Key Vault + carregar segredos
+        id: kv
         run: |
           set -euo pipefail
-          if [ -n "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
-            VAULT=$(echo "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" | sed 's|https://||' | sed 's|\.vault\.azure\.net/||')
-          else
-            VAULT="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          VAULT="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          if [ -z "$VAULT" ]; then
+            VAULT="$(echo "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" | sed 's#https://##; s#\.vault\.azure\.net/?##')"
           fi
-          echo "VAULT_NAME=$VAULT" >> $GITHUB_ENV
+          echo "VAULT=$VAULT" >> "$GITHUB_ENV"
 
-          REQUIRED=(
-            "conexao-de-sorte-database-password"
-            "conexao-de-sorte-database-url"
-            "conexao-de-sorte-database-username"
-            "conexao-de-sorte-encryption-master-key"
-            "conexao-de-sorte-encryption-master-password"
-            "conexao-de-sorte-jwt-key-id"
-            "conexao-de-sorte-jwt-privateKey"
-            "conexao-de-sorte-jwt-publicKey"
-            "conexao-de-sorte-jwt-secret"
-          )
-          for s in "${REQUIRED[@]}"; do
-            if ! az keyvault secret show --vault-name "$VAULT" --name "$s" --query id -o tsv >/dev/null 2>&1; then
-              echo "ERROR: Secret '$s' not found in vault '$VAULT'." >&2
-              exit 1
-            fi
-          done
+          get() { az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv; }
 
-          DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-password" --query value -o tsv)
-          DB_URL=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-url" --query value -o tsv)
-          DB_USER=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-username" --query value -o tsv)
-          ENC_KEY=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-encryption-master-key" --query value -o tsv)
-          ENC_PASS=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-encryption-master-password" --query value -o tsv)
-          JWT_KEY_ID=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-key-id" --query value -o tsv)
-          JWT_SECRET=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-secret" --query value -o tsv)
-          JWT_PRIV=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-privateKey" --query value -o tsv)
-          JWT_PUB=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-publicKey" --query value -o tsv)
-
-          echo "SPRING_DATASOURCE_URL=$DB_URL" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_USERNAME=$DB_USER" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_PASSWORD=$DB_PASS" >> $GITHUB_ENV
-          echo "CONEXAO_JWT_SECRET=$JWT_SECRET" >> $GITHUB_ENV
-          echo "CONEXAO_JWT_KEY_ID=$JWT_KEY_ID" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_URL=$(get conexao-de-sorte-database-url)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_USERNAME=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_PASSWORD=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
+          echo "CONEXAO_JWT_SECRET=$(get conexao-de-sorte-jwt-secret)" >> $GITHUB_ENV
+          echo "CONEXAO_JWT_KEY_ID=$(get conexao-de-sorte-jwt-key-id)" >> $GITHUB_ENV
 
           SECRETS_DIR=$(mktemp -d -p /tmp conexao_secrets_XXXX)
           umask 077
-          printf '%s' "$JWT_PRIV" > "$SECRETS_DIR/jwt_private.pem"
-          printf '%s' "$JWT_PUB"  > "$SECRETS_DIR/jwt_public.pem"
-          printf '%s' "$ENC_KEY" > "$SECRETS_DIR/encryption_master_key"
-          printf '%s' "$ENC_PASS" > "$SECRETS_DIR/encryption_master_password"
+          printf '%s' "$(get conexao-de-sorte-jwt-privateKey)" > "$SECRETS_DIR/jwt_private.pem"
+          printf '%s' "$(get conexao-de-sorte-jwt-publicKey)"  > "$SECRETS_DIR/jwt_public.pem"
+          printf '%s' "$(get conexao-de-sorte-encryption-master-key)" > "$SECRETS_DIR/encryption_master_key"
+          printf '%s' "$(get conexao-de-sorte-encryption-master-password)" > "$SECRETS_DIR/encryption_master_password"
           chmod 600 "$SECRETS_DIR"/*
           echo "SECRETS_DIR=$SECRETS_DIR" >> $GITHUB_ENV
 
@@ -277,11 +225,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull & Run container (staging)
+      - name: Garantir rede Docker
+        run: docker network inspect conexao-network >/dev/null 2>&1 || docker network create conexao-network
+
+      - name: Pull & Run (staging)
         run: |
           set -euo pipefail
-          TAG=develop
-          IMAGE=${{ env.REGISTRY }}/${{ needs.build-image.outputs.image-name-lower }}:$TAG
+          IMAGE="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}:develop"
           docker pull "$IMAGE"
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
@@ -292,16 +242,13 @@ jobs:
             --restart unless-stopped \
             -p 8080:8080 \
             --health-cmd="curl -f http://localhost:8080/actuator/health || exit 1" \
-            --health-interval=60s \
-            --health-timeout=30s \
-            --health-retries=3 \
-            --health-start-period=120s \
+            --health-interval=60s --health-timeout=30s --health-retries=3 --health-start-period=120s \
             -v "${SECRETS_DIR}":/run/secrets:ro \
             -e SPRING_PROFILES_ACTIVE=staging,azure \
             -e ENVIRONMENT=staging \
             -e SERVER_PORT=8080 \
             -e SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/ \
-            -e TZ=America/Sao_Paulo \
+            -e TZ=${{ env.TZ }} \
             -e SPRING_DATASOURCE_URL="${SPRING_DATASOURCE_URL}" \
             -e SPRING_DATASOURCE_USERNAME="${SPRING_DATASOURCE_USERNAME}" \
             -e SPRING_DATASOURCE_PASSWORD="${SPRING_DATASOURCE_PASSWORD}" \
@@ -313,15 +260,14 @@ jobs:
             "$IMAGE"
 
           for i in $(seq 1 10); do
-            if curl -fsS http://localhost:8080/actuator/health >/dev/null 2>&1; then
-              echo "✅ Service healthy"
+            if curl -fsS http://localhost:8080/actuator/health >/dev/null; then
+              echo "✅ healthy"
               break
             fi
-            echo "⏳ waiting for health ($i/10)..."
-            sleep 10
+            echo "⏳ aguardando ($i/10)"; sleep 10
             if [ "$i" -eq 10 ]; then
-              echo "❌ Health check failed"
-              docker logs resultados-microservice --tail 100
+              echo "❌ health check falhou"
+              docker logs resultados-microservice --tail 200
               rm -rf "${SECRETS_DIR}" || true
               exit 1
             fi
@@ -334,7 +280,7 @@ jobs:
     needs: [build-image, sign-image]
     runs-on: [self-hosted, hostinger-runner]
     if: github.ref == 'refs/heads/main'
-    name: 🌟 Deploy to Production
+    name: 🌟 Deploy to Production (self-hosted, OIDC)
     permissions:
       id-token: write
       contents: read
@@ -342,64 +288,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC / SP fallback)
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Fetch Key Vault secrets (local)
-        id: fetch_secrets_prod
+      - name: Resolve Key Vault + carregar segredos
         run: |
           set -euo pipefail
-          if [ -n "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
-            VAULT=$(echo "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" | sed 's|https://||' | sed 's|\.vault\.azure\.net/||')
-          else
-            VAULT="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          VAULT="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          if [ -z "$VAULT" ]; then
+            VAULT="$(echo "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" | sed 's#https://##; s#\.vault\.azure\.net/?##')"
           fi
-          echo "VAULT_NAME=$VAULT" >> $GITHUB_ENV
+          echo "VAULT=$VAULT" >> "$GITHUB_ENV"
 
-          REQUIRED=(
-            "conexao-de-sorte-database-password"
-            "conexao-de-sorte-database-url"
-            "conexao-de-sorte-database-username"
-            "conexao-de-sorte-encryption-master-key"
-            "conexao-de-sorte-encryption-master-password"
-            "conexao-de-sorte-jwt-key-id"
-            "conexao-de-sorte-jwt-privateKey"
-            "conexao-de-sorte-jwt-publicKey"
-            "conexao-de-sorte-jwt-secret"
-          )
-          for s in "${REQUIRED[@]}"; do
-            if ! az keyvault secret show --vault-name "$VAULT" --name "$s" --query id -o tsv >/dev/null 2>&1; then
-              echo "ERROR: Secret '$s' not found in vault '$VAULT'." >&2
-              exit 1
-            fi
-          done
+          get() { az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv; }
 
-          DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-password" --query value -o tsv)
-          DB_URL=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-url" --query value -o tsv)
-          DB_USER=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-username" --query value -o tsv)
-          ENC_KEY=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-encryption-master-key" --query value -o tsv)
-          ENC_PASS=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-encryption-master-password" --query value -o tsv)
-          JWT_KEY_ID=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-key-id" --query value -o tsv)
-          JWT_SECRET=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-secret" --query value -o tsv)
-          JWT_PRIV=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-privateKey" --query value -o tsv)
-          JWT_PUB=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-publicKey" --query value -o tsv)
-
-          echo "SPRING_DATASOURCE_URL=$DB_URL" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_USERNAME=$DB_USER" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_PASSWORD=$DB_PASS" >> $GITHUB_ENV
-          echo "CONEXAO_JWT_SECRET=$JWT_SECRET" >> $GITHUB_ENV
-          echo "CONEXAO_JWT_KEY_ID=$JWT_KEY_ID" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_URL=$(get conexao-de-sorte-database-url)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_USERNAME=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_PASSWORD=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
+          echo "CONEXAO_JWT_SECRET=$(get conexao-de-sorte-jwt-secret)" >> $GITHUB_ENV
+          echo "CONEXAO_JWT_KEY_ID=$(get conexao-de-sorte-jwt-key-id)" >> $GITHUB_ENV
 
           SECRETS_DIR=$(mktemp -d -p /tmp conexao_secrets_XXXX)
           umask 077
-          printf '%s' "$JWT_PRIV" > "$SECRETS_DIR/jwt_private.pem"
-          printf '%s' "$JWT_PUB"  > "$SECRETS_DIR/jwt_public.pem"
-          printf '%s' "$ENC_KEY" > "$SECRETS_DIR/encryption_master_key"
-          printf '%s' "$ENC_PASS" > "$SECRETS_DIR/encryption_master_password"
+          printf '%s' "$(get conexao-de-sorte-jwt-privateKey)" > "$SECRETS_DIR/jwt_private.pem"
+          printf '%s' "$(get conexao-de-sorte-jwt-publicKey)"  > "$SECRETS_DIR/jwt_public.pem"
+          printf '%s' "$(get conexao-de-sorte-encryption-master-key)" > "$SECRETS_DIR/encryption_master_key"
+          printf '%s' "$(get conexao-de-sorte-encryption-master-password)" > "$SECRETS_DIR/encryption_master_password"
           chmod 600 "$SECRETS_DIR"/*
           echo "SECRETS_DIR=$SECRETS_DIR" >> $GITHUB_ENV
 
@@ -410,11 +328,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull & Run container (production)
+      - name: Garantir rede Docker
+        run: docker network inspect conexao-network >/dev/null 2>&1 || docker network create conexao-network
+
+      - name: Pull & Run (production)
         run: |
           set -euo pipefail
-          TAG=latest
-          IMAGE=${{ env.REGISTRY }}/${{ needs.build-image.outputs.image-name-lower }}:$TAG
+          IMAGE="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}:latest"
 
           docker tag resultados-microservice resultados-microservice:backup-$(date +%Y%m%d-%H%M%S) || true
           docker pull "$IMAGE"
@@ -427,16 +347,13 @@ jobs:
             --restart unless-stopped \
             -p 8080:8080 \
             --health-cmd="curl -f http://localhost:8080/actuator/health || exit 1" \
-            --health-interval=60s \
-            --health-timeout=30s \
-            --health-retries=3 \
-            --health-start-period=120s \
+            --health-interval=60s --health-timeout=30s --health-retries=3 --health-start-period=120s \
             -v "${SECRETS_DIR}":/run/secrets:ro \
             -e SPRING_PROFILES_ACTIVE=prod,azure \
             -e ENVIRONMENT=production \
             -e SERVER_PORT=8080 \
             -e SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/ \
-            -e TZ=America/Sao_Paulo \
+            -e TZ=${{ env.TZ }} \
             -e SPRING_DATASOURCE_URL="${SPRING_DATASOURCE_URL}" \
             -e SPRING_DATASOURCE_USERNAME="${SPRING_DATASOURCE_USERNAME}" \
             -e SPRING_DATASOURCE_PASSWORD="${SPRING_DATASOURCE_PASSWORD}" \
@@ -454,14 +371,13 @@ jobs:
             "$IMAGE"
 
           for i in $(seq 1 10); do
-            if curl -fsS https://resultados.conexaodesorte.com.br/actuator/health >/dev/null 2>&1; then
-              echo "✅ Service healthy"
+            if curl -fsS https://resultados.conexaodesorte.com.br/actuator/health >/dev/null; then
+              echo "✅ healthy"
               break
             fi
-            echo "⏳ waiting for health ($i/10)"
-            sleep 10
+            echo "⏳ aguardando ($i/10)"; sleep 10
             if [ "$i" -eq 10 ]; then
-              echo "❌ Health check failed, rolling back..."
+              echo "❌ health check falhou, rollback"
               docker stop resultados-microservice || true
               docker rm resultados-microservice || true
               docker run -d --name resultados-microservice --network conexao-network --restart unless-stopped -p 8080:8080 resultados-microservice:backup-$(date +%Y%m%d) || true
@@ -479,8 +395,7 @@ jobs:
     if: always()
     needs: [build-and-test, build-image, sign-image, deploy-staging, deploy-production]
     steps:
-      - name: Notify deployment status
-        uses: 8398a7/action-slack@v3
+      - uses: 8398a7/action-slack@v3
         if: always() && env.SLACK_WEBHOOK_URL != ''
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
