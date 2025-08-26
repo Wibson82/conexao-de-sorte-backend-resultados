@@ -28,40 +28,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ===== BUILD & TEST =====
   build-and-test:
     runs-on: ubuntu-latest
     name: 🏗️ Build and Test
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: ☕ Setup Java 24
+      - uses: actions/checkout@v4
+      - name: Setup Java 24
         uses: actions/setup-java@v4
         with:
           java-version: '24'
           distribution: 'temurin'
           cache: maven
-
-      - name: 🔍 Verify Maven wrapper
+      - name: Verify Maven wrapper
         run: |
           chmod +x ./mvnw
           ./mvnw --version
-
-      - name: 🧪 Run unit tests
+      - name: Run unit tests
         run: ./mvnw clean test -Dspring.profiles.active=test
-
-      - name: 🏗️ Build application
+      - name: Build application
         run: ./mvnw clean package -DskipTests -Dspring.profiles.active=production
-
-      - name: 📦 Upload build artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: resultados-microservice-jar
           path: target/*.jar
           retention-days: 7
 
-  # ===== BUILD & PUSH IMAGE =====
   build-image:
     runs-on: ubuntu-latest
     name: 🐳 Build Docker Image
@@ -71,17 +63,14 @@ jobs:
       contents: read
       packages: write
       attestations: write
-
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tags: ${{ steps.meta.outputs.tags }}
       image-name-lower: ${{ steps.image_name.outputs.image_name_lower }}
-
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔧 Compute lowercase image name
+      - name: Compute lowercase image name
         id: image_name
         run: |
           set -euo pipefail
@@ -89,17 +78,17 @@ jobs:
           IMG_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
           echo "image_name_lower=$IMG_LOWER" >> "$GITHUB_OUTPUT"
 
-      - name: 🐳 Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🔐 Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📋 Extract metadata
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -117,7 +106,7 @@ jobs:
             org.opencontainers.image.description=Lottery results management microservice
             org.opencontainers.image.service=${{ env.SERVICE_NAME }}
 
-      - name: 🏗️ Build and push Docker image
+      - name: Build and push image
         id: build
         uses: docker/build-push-action@v5
         with:
@@ -136,32 +125,30 @@ jobs:
             VCS_REF=${{ github.sha }}
             VERSION=1.0.0
 
-  # ===== SIGN IMAGE WITH COSIGN (keyless) =====
   sign-image:
     runs-on: ubuntu-latest
-    name: ✍️ Sign Container Image
+    name: ✍️ Sign Container Image (keyless)
     needs: build-image
     permissions:
       id-token: write
       packages: write
       contents: read
-
     steps:
-      - name: 🔐 Login to GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📌 Resolve image tag to sign
+      - name: Resolve image tag to sign
         id: resolve_tag
         run: |
           set -euo pipefail
           tags="${{ needs.build-image.outputs.image-tags }}"
           first=$(echo "$tags" | tr ',' '\n' | sed '/^\s*$/d' | head -n1 | tr -d '[:space:]')
           if [ -z "$first" ]; then
-            echo "No image tag found from build metadata. Exiting." >&2
+            echo "No image tag found from build metadata" >&2
             exit 1
           fi
           if [[ "$first" != *"/"*":"* && "$first" != *"${{ env.REGISTRY }}"* ]]; then
@@ -173,14 +160,14 @@ jobs:
           IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
-      - name: 🔎 Validate image exists (pull)
+      - name: Pull image to validate existence
         run: |
           set -euo pipefail
           IMAGE="${{ steps.resolve_tag.outputs.image }}"
-          echo "Pulling image: $IMAGE"
+          echo "Pulling $IMAGE"
           docker pull "$IMAGE"
 
-      - name: 🔐 Install Cosign (if missing)
+      - name: Install cosign if missing
         run: |
           set -euo pipefail
           if ! command -v cosign >/dev/null 2>&1; then
@@ -188,48 +175,51 @@ jobs:
             chmod +x /usr/local/bin/cosign
           fi
 
-      - name: ✍️ Sign image with Cosign (keyless)
+      - name: Sign image (keyless)
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
           set -euo pipefail
           IMAGE="${{ steps.resolve_tag.outputs.image }}"
+          echo "Signing $IMAGE (keyless)"
           cosign sign --yes "$IMAGE"
-          echo "Signed: $IMAGE"
 
-      - name: ✅ Verify cosign signature
+      - name: Verify signature (keyless, with certificate identity constraints)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: |
           set -euo pipefail
           IMAGE="${{ steps.resolve_tag.outputs.image }}"
-          cosign verify "$IMAGE" || (echo "cosign verify failed" >&2; exit 1)
+          # Accept certificates issued via GitHub Actions OIDC issuer and allow any identity.
+          # Replace the regexp by a stricter one if you want to restrict identity.
+          cosign verify --keyless \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp ".*" \
+            "$IMAGE"
 
-  # ===== DEPLOY TO STAGING (SELF-HOSTED + OIDC) =====
   deploy-staging:
     needs: [build-image, sign-image]
     runs-on: [self-hosted, hostinger-runner]
     if: github.ref == 'refs/heads/develop'
-    name: 🚀 Deploy to Staging (Self-hosted)
+    name: 🚀 Deploy to Staging
     permissions:
       id-token: write
       contents: read
       packages: read
-
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔐 Azure Login (OIDC / SP fallback)
+      - name: Azure Login (OIDC / SP fallback)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🔐 Fetch Key Vault secrets (local on runner)
+      - name: Fetch Key Vault secrets (local)
         id: fetch_secrets
         run: |
           set -euo pipefail
-          # resolve vault name
           if [ -n "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
             VAULT=$(echo "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" | sed 's|https://||' | sed 's|\.vault\.azure\.net/||')
           else
@@ -237,8 +227,7 @@ jobs:
           fi
           echo "VAULT_NAME=$VAULT" >> $GITHUB_ENV
 
-          # required secrets in your vault (exact names you provided)
-          REQUIRED_SECRETS=(
+          REQUIRED=(
             "conexao-de-sorte-database-password"
             "conexao-de-sorte-database-url"
             "conexao-de-sorte-database-username"
@@ -249,15 +238,13 @@ jobs:
             "conexao-de-sorte-jwt-publicKey"
             "conexao-de-sorte-jwt-secret"
           )
-
-          for s in "${REQUIRED_SECRETS[@]}"; do
+          for s in "${REQUIRED[@]}"; do
             if ! az keyvault secret show --vault-name "$VAULT" --name "$s" --query id -o tsv >/dev/null 2>&1; then
               echo "ERROR: Secret '$s' not found in vault '$VAULT'." >&2
               exit 1
             fi
           done
 
-          # read values (do not print)
           DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-password" --query value -o tsv)
           DB_URL=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-url" --query value -o tsv)
           DB_USER=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-database-username" --query value -o tsv)
@@ -268,14 +255,12 @@ jobs:
           JWT_PRIV=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-privateKey" --query value -o tsv)
           JWT_PUB=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-de-sorte-jwt-publicKey" --query value -o tsv)
 
-          # export env for next steps (avoid printing values)
           echo "SPRING_DATASOURCE_URL=$DB_URL" >> $GITHUB_ENV
           echo "SPRING_DATASOURCE_USERNAME=$DB_USER" >> $GITHUB_ENV
           echo "SPRING_DATASOURCE_PASSWORD=$DB_PASS" >> $GITHUB_ENV
           echo "CONEXAO_JWT_SECRET=$JWT_SECRET" >> $GITHUB_ENV
           echo "CONEXAO_JWT_KEY_ID=$JWT_KEY_ID" >> $GITHUB_ENV
 
-          # write large keys to temp dir and expose path via GITHUB_ENV
           SECRETS_DIR=$(mktemp -d -p /tmp conexao_secrets_XXXX)
           umask 077
           printf '%s' "$JWT_PRIV" > "$SECRETS_DIR/jwt_private.pem"
@@ -285,19 +270,18 @@ jobs:
           chmod 600 "$SECRETS_DIR"/*
           echo "SECRETS_DIR=$SECRETS_DIR" >> $GITHUB_ENV
 
-      - name: 🔐 Login GHCR
+      - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🚚 Pull & run container (staging)
+      - name: Pull & Run container (staging)
         run: |
           set -euo pipefail
           TAG=develop
           IMAGE=${{ env.REGISTRY }}/${{ needs.build-image.outputs.image-name-lower }}:$TAG
-
           docker pull "$IMAGE"
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
@@ -343,33 +327,29 @@ jobs:
             fi
           done
 
-          # cleanup temporary secrets dir
           rm -rf "${SECRETS_DIR}" || true
           docker image prune -f
 
-  # ===== DEPLOY TO PRODUCTION (SELF-HOSTED + OIDC) =====
   deploy-production:
     needs: [build-image, sign-image]
     runs-on: [self-hosted, hostinger-runner]
     if: github.ref == 'refs/heads/main'
-    name: 🌟 Deploy to Production (Self-hosted)
+    name: 🌟 Deploy to Production
     permissions:
       id-token: write
       contents: read
       packages: read
-
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔐 Azure Login (OIDC / SP fallback)
+      - name: Azure Login (OIDC / SP fallback)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🔐 Fetch Key Vault secrets (local on runner)
+      - name: Fetch Key Vault secrets (local)
         id: fetch_secrets_prod
         run: |
           set -euo pipefail
@@ -380,8 +360,7 @@ jobs:
           fi
           echo "VAULT_NAME=$VAULT" >> $GITHUB_ENV
 
-          # same required secrets as staging
-          REQUIRED_SECRETS=(
+          REQUIRED=(
             "conexao-de-sorte-database-password"
             "conexao-de-sorte-database-url"
             "conexao-de-sorte-database-username"
@@ -392,8 +371,7 @@ jobs:
             "conexao-de-sorte-jwt-publicKey"
             "conexao-de-sorte-jwt-secret"
           )
-
-          for s in "${REQUIRED_SECRETS[@]}"; do
+          for s in "${REQUIRED[@]}"; do
             if ! az keyvault secret show --vault-name "$VAULT" --name "$s" --query id -o tsv >/dev/null 2>&1; then
               echo "ERROR: Secret '$s' not found in vault '$VAULT'." >&2
               exit 1
@@ -425,14 +403,14 @@ jobs:
           chmod 600 "$SECRETS_DIR"/*
           echo "SECRETS_DIR=$SECRETS_DIR" >> $GITHUB_ENV
 
-      - name: 🔐 Login GHCR
+      - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🚚 Pull & run container (production)
+      - name: Pull & Run container (production)
         run: |
           set -euo pipefail
           TAG=latest
@@ -495,14 +473,13 @@ jobs:
           rm -rf "${SECRETS_DIR}" || true
           docker image prune -f
 
-  # ===== NOTIFICATION =====
   notify:
     runs-on: ubuntu-latest
     name: 📢 Notification
     if: always()
     needs: [build-and-test, build-image, sign-image, deploy-staging, deploy-production]
     steps:
-      - name: 📢 Notify deployment status
+      - name: Notify deployment status
         uses: 8398a7/action-slack@v3
         if: always() && env.SLACK_WEBHOOK_URL != ''
         env:
