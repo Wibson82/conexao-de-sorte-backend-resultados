@@ -56,7 +56,7 @@ services:
       - LOG_LEVEL=INFO
       
       # Performance
-      - JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+      - JAVA_TOOL_OPTIONS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
     depends_on:
       - resultados-mysql
       - resultados-redis
