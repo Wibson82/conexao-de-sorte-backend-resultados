@@ -91,44 +91,86 @@ O Cosign estava tentando assinar a imagem usando apenas o digest SHA256, sem o n
    
    **Motivo:** O digest SHA256 estava sendo truncado ou malformado, causando erro de parsing. Usar tags é mais confiável para assinatura.
 
-## ❌ Erro de Login no Azure - Tenant ID Incorreto
+## ✅ Configuração Segura do Azure com OIDC (Federated Credentials)
 
-### 🔍 Problema:
+### 🔒 **Configuração Atual (OIDC Puro - Mais Seguro):**
+
+O workflow está configurado para usar **OIDC puro** com federated credentials, que é mais seguro que client secrets.
+
+**Secrets necessários (apenas 3):**
+
+| Secret | Formato | Obrigatório |
+|--------|---------|-------------|
+| `AZURE_CLIENT_ID` | UUID | ✅ |
+| `AZURE_TENANT_ID` | UUID | ✅ |
+| `AZURE_SUBSCRIPTION_ID` | UUID | ✅ |
+| ~~`AZURE_CLIENT_SECRET`~~ | ❌ **NÃO USAR** | ❌ |
+
+### 🛠️ **Configuração Completa no Azure:**
+
+**1. App Registration:**
 ```
-Error: Failed to resolve tenant '***'.
-AADSTS90002: Tenant '6rn8q~qm4my4wyriwlhfg4ni0fl.1~ihaglvmbw.' not found.
+Entra ID → App registrations → New registration
+- Anote: Application (client) ID e Directory (tenant) ID
 ```
 
-### 🔍 Causa:
-O valor do secret `AZURE_TENANT_ID` está incorreto. O valor atual parece ser um **client secret** em vez de um **tenant ID**.
+**2. Federated Credentials (CRÍTICO):**
+```
+App → Certificates & secrets → Federated credentials → Add:
+- Provider: GitHub Actions
+- Owner: Wibson82 (seu usuário GitHub)
+- Repository: Wibson82/conexao-de-sorte-backend-resultados
+- Subject type: Branch
+- Subject identifier: refs/heads/main
+- Audience: api://AzureADTokenExchange
+```
 
-**Formato correto:**
-- ✅ **Tenant ID**: `12345678-1234-1234-1234-123456789012` (formato UUID)
-- ❌ **Client Secret**: `6rn8q~qm4my4wyriwlhfg4ni0fl.1~ihaglvmbw.` (string alfanumérica)
+**3. Permissões RBAC no Key Vault:**
+```
+Key Vault → Access control (IAM) → Add role assignment:
+- Role: Key Vault Secrets User (leitura)
+- Role: Key Vault Secrets Officer (se criar/atualizar)
+- Assign to: [sua App Registration]
+```
 
-### ✅ Solução:
+### 🔍 **Verificação da Configuração:**
 
-**1. Verificar e corrigir os secrets no GitHub:**
+**Workflow atual (✅ CORRETO):**
+```yaml
+- name: 🔐 Login to Azure (OIDC)
+  uses: azure/login@v2
+  with:
+    client-id: ${{ secrets.AZURE_CLIENT_ID }}
+    tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+    subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    # ✅ Sem client-secret = OIDC puro
+```
 
-| Secret | Formato Esperado | Status |
-|--------|------------------|--------|
-| `AZURE_CLIENT_ID` | UUID (12345678-1234-...) | ✅ |
-| `AZURE_CLIENT_SECRET` | String alfanumérica | ✅ |
-| `AZURE_TENANT_ID` | UUID (12345678-1234-...) | ❌ **INCORRETO** |
-| `AZURE_SUBSCRIPTION_ID` | UUID (12345678-1234-...) | ❓ |
+### 🧹 **Limpeza de Secrets Desnecessários:**
 
-**2. Como obter os valores corretos:**
+**Remover do GitHub Actions Secrets:**
+```
+Repositório → Settings → Secrets and variables → Actions
+→ Deletar: AZURE_CLIENT_SECRET (se existir)
+```
+
+### ⚠️ **Possíveis Problemas:**
+
+1. **Federated credentials não configurados** → Erro de autenticação
+2. **Subject identifier incorreto** → Use `refs/heads/main` para branch main
+3. **Permissões RBAC ausentes** → Erro ao acessar Key Vault
+4. **Tenant ID incorreto** → Verifique se é UUID, não client secret
+5. **AZURE_CLIENT_SECRET ainda presente** → Remover do GitHub Secrets
+
+### 🔍 **Como Verificar se Está Funcionando:**
+
 ```bash
-# Via Azure CLI
-az account show --query '{tenantId: tenantId, subscriptionId: id}' -o table
-
-# Via Portal Azure
-# Tenant ID: Azure Active Directory → Properties → Tenant ID
-# Subscription ID: Subscriptions → [sua subscription] → Subscription ID
+# O login deve funcionar apenas com os 3 secrets:
+echo "✅ AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}"
+echo "✅ AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}"
+echo "✅ AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+echo "❌ AZURE_CLIENT_SECRET: NÃO DEVE EXISTIR"
 ```
-
-**3. Verificar se os secrets estão trocados:**
-Parece que o `AZURE_TENANT_ID` pode estar com o valor do `AZURE_CLIENT_SECRET`. Verifique se os valores não foram trocados durante a configuração.
 
 ## ⚠️ Warning do Google Guice com Java 24
 

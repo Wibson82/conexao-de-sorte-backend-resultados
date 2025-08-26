@@ -2,14 +2,15 @@
 
 ## 🔍 **ANÁLISE REALIZADA:**
 
-### **✅ Status dos Secrets GitHub → Azure Key Vault:**
+### **✅ Status dos Secrets GitHub → Azure Key Vault (OIDC Puro):**
 
-| Secret GitHub | Usado no CI/CD | Mapeado no Azure KV | Status |
-|---------------|----------------|---------------------|---------|
-| `AZURE_CLIENT_ID` | ✅ | ✅ | **CORRETO** |
-| `AZURE_CLIENT_SECRET` | ✅ | ✅ | **CORRETO** |
-| `AZURE_TENANT_ID` | ✅ | ✅ | **CORRETO** |
-| `AZURE_KEYVAULT_ENDPOINT` | ✅ | ✅ | **CORRETO** |
+| Secret GitHub | Usado no CI/CD | Tipo | Status |
+|---------------|----------------|------|--------|
+| `AZURE_CLIENT_ID` | ✅ | OIDC Auth | **CORRETO** |
+| `AZURE_TENANT_ID` | ✅ | OIDC Auth | **CORRETO** |
+| `AZURE_SUBSCRIPTION_ID` | ✅ | OIDC Auth | **CORRETO** |
+| ~~`AZURE_CLIENT_SECRET`~~ | ❌ | **REMOVIDO** | **OIDC PURO** |
+| `AZURE_KEYVAULT_ENDPOINT` | ✅ | Key Vault | **CORRETO** |
 | `SPRING_DATASOURCE_PASSWORD` | ❌ | N/A | **NÃO NECESSÁRIO** |
 | `SPRING_DATASOURCE_USERNAME` | ❌ | N/A | **NÃO NECESSÁRIO** |
 
@@ -63,15 +64,21 @@
 
 ## ✅ **RESULTADO FINAL:**
 
-### **Fluxo de Secrets Implementado:**
+### **Fluxo de Secrets Implementado (OIDC Puro):**
 ```
-GitHub Secrets (CI/CD) → Azure Key Vault → Application Properties → Aplicação
-     ↓                        ↓                     ↓                ↓
-AZURE_CLIENT_ID         →  Autenticação      →  Properties      →  R2DBC
-AZURE_CLIENT_SECRET     →  no Key Vault      →  Tipadas         →  JWT
-AZURE_TENANT_ID         →                    →                  →  Crypto
-AZURE_KEYVAULT_ENDPOINT →                    →                  →  Cache
+GitHub Actions (OIDC) → Azure Federated Credentials → Key Vault → Application
+     ↓                        ↓                          ↓            ↓
+AZURE_CLIENT_ID         →  Federated Auth        →  Properties   →  R2DBC
+AZURE_TENANT_ID         →  (Sem Client Secret)   →  Tipadas      →  JWT
+AZURE_SUBSCRIPTION_ID   →                        →               →  Crypto
+AZURE_KEYVAULT_ENDPOINT →                        →               →  Cache
 ```
+
+### **🔒 Autenticação OIDC (Mais Segura):**
+- ✅ **Federated Credentials** configurados no Azure
+- ✅ **Sem secrets estáticos** (client secret removido)
+- ✅ **Tokens temporários** gerados automaticamente
+- ✅ **Rotação automática** pelo Azure AD
 
 ### **Secrets Mapeados Corretamente:**
 1. **Banco de Dados (R2DBC):** ✅ URL, Username, Password
