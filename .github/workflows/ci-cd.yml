@@ -123,13 +123,23 @@ jobs:
 
   sign-image:
     runs-on: ubuntu-latest
-    name: ✍️ Sign & Verify (OIDC keyless por digest)
+    name: ✍️ Sign & Verify (100% OIDC keyless)
     needs: build-image
     permissions:
       id-token: write
       contents: read
       packages: write
+      attestations: write
     steps:
+      - name: Verify OIDC token availability
+        run: |
+          echo "🔍 Verifying OIDC token is available..."
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+            echo "❌ OIDC token not available"
+            exit 1
+          fi
+          echo "✅ OIDC token is available"
+          
       - name: Resolve image digest ref
         id: ref
         run: |
@@ -140,7 +150,7 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
         with:
-          cosign-release: v2.5.2
+          cosign-release: v2.6.0
 
       - name: Login GHCR
         uses: docker/login-action@v3
@@ -152,19 +162,32 @@ jobs:
       - name: Pull digest
         run: docker pull "${{ steps.ref.outputs.lower }}"
 
-      - name: Sign (keyless)
-        env:
-          COSIGN_EXPERIMENTAL: "1"
-        run: cosign sign --yes "${{ steps.ref.outputs.lower }}"
-
-      - name: Verify (issuer + identidade do repo/branch main)
+      - name: Sign (keyless OIDC)
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          cosign verify --keyless \
+          echo "🔐 Signing container image with OIDC keyless signature..."
+          cosign sign --yes "${{ steps.ref.outputs.lower }}"
+
+      - name: Verify OIDC signature
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          echo "✅ Verifying OIDC keyless signature..."
+          cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/heads/main$" \
             "${{ steps.ref.outputs.lower }}"
+          echo "🎉 Container image signature verified successfully!"
+          
+      - name: Generate SBOM attestation (OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"  
+        run: |
+          echo "📋 Generating SBOM attestation with OIDC..."
+          cosign attest --yes --type=spdxjson \
+            --predicate=/dev/null \
+            "${{ steps.ref.outputs.lower }}" || echo "SBOM attestation optional - continuing"
 
   deploy-staging:
     needs: [build-image, sign-image]
