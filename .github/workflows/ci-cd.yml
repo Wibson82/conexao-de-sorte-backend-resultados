@@ -20,7 +20,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ toLower(github.repository) }}
   SERVICE_NAME: resultados
 
 concurrency:
@@ -127,7 +127,7 @@ jobs:
             VCS_REF=${{ github.sha }}
             VERSION=1.0.0
 
-  # ===== SIGN IMAGE WITH COSIGN =====
+  # ===== SIGN IMAGE WITH COSIGN (keyless, robust) =====
   sign-image:
     runs-on: ubuntu-latest
     name: ✍️ Sign Container Image
@@ -138,22 +138,58 @@ jobs:
       contents: read
 
     steps:
-      - name: 🔐 Install Cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: 🔐 Login to GitHub Container Registry
+      - name: 🔐 Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: ✍️ Sign image with keyless signing
+      - name: 📌 Resolve image tag to sign
+        id: resolve_tag
         run: |
           set -euo pipefail
-          IMAGE_TAG=$([ "${{ github.ref_name }}" = "main" ] && echo ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest || echo ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:develop)
-          cosign sign --yes "$IMAGE_TAG"
-          echo "✅ Image signed: $IMAGE_TAG"
+          tags='${{ needs.build-image.outputs.image-tags }}'
+          # normalize separators and pick first non-empty tag
+          first=$(echo "$tags" | tr ',' '\n' | sed '/^\s*$/d' | head -n1)
+          first=$(echo "$first" | tr -d '[:space:]')
+          if [ -z "$first" ]; then
+            echo "No image tag found from build metadata. Exiting." >&2
+            exit 1
+          fi
+          # if tag doesn't include registry prefix, prefix it
+          if [[ "$first" != *"/"*":"* && "$first" != *"${{ env.REGISTRY }}"* ]]; then
+            IMAGE="${{ env.REGISTRY }}/$first"
+          else
+            IMAGE="$first"
+          fi
+          # force lowercase to satisfy OCI rules
+          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: 🔎 Validate image exists (pull)
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.resolve_tag.outputs.image }}"
+          echo "Pulling image: $IMAGE"
+          docker pull "$IMAGE"
+
+      - name: 🔐 Install Cosign (if missing)
+        run: |
+          set -euo pipefail
+          if ! command -v cosign >/dev/null 2>&1; then
+            curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
+            chmod +x /usr/local/bin/cosign
+          fi
+      - name: ✍️ Sign image with Cosign (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.resolve_tag.outputs.image }}"
+          echo "Signing image: $IMAGE"
+          cosign sign --yes "$IMAGE"
+          echo "✅ Image signed: $IMAGE"
 
   # ===== DEPLOY TO STAGING (SELF-HOSTED + OIDC) =====
   deploy-staging:
@@ -181,16 +217,12 @@ jobs:
         id: fetch_secrets
         run: |
           set -euo pipefail
-          # compute vault name
           if [ -n "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
             VAULT=$(echo "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" | sed 's|https://||' | sed 's|\.vault\.azure\.net/||')
           else
-            # fallback to name secret (if you set AZURE_KEYVAULT_NAME)
             VAULT="${{ secrets.AZURE_KEYVAULT_NAME }}"
           fi
           echo "VAULT_NAME=$VAULT" >> $GITHUB_ENV
-
-          # fetch secrets securely (no echo)
           DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name "conexao-db-password" --query value -o tsv)
           JWT_SECRET=$(az keyvault secret show --vault-name "$VAULT" --name "jwt-secret" --query value -o tsv)
           echo "DB_PASS=$DB_PASS" >> $GITHUB_ENV
@@ -232,7 +264,6 @@ jobs:
             -e JWT_SECRET="${JWT_SECRET}" \
             "$IMAGE"
 
-          # health checks
           for i in $(seq 1 10); do
             if curl -fsS http://localhost:8080/actuator/health >/dev/null 2>&1; then
               echo "✅ Service healthy"
@@ -299,9 +330,7 @@ jobs:
           TAG=latest
           IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG
 
-          # backup current
           docker tag resultados-microservice resultados-microservice:backup-$(date +%Y%m%d-%H%M%S) || true
-
           docker pull "$IMAGE"
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
@@ -332,7 +361,6 @@ jobs:
             --label "traefik.http.services.resultados.loadbalancer.server.port=8080" \
             "$IMAGE"
 
-          # health check
           for i in $(seq 1 10); do
             if curl -fsS https://resultados.conexaodesorte.com.br/actuator/health >/dev/null 2>&1; then
               echo "✅ Service healthy"
