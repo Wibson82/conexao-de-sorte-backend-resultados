@@ -1,7 +1,9 @@
 package br.tec.facilitaservicos.resultados.configuracao;
 
+import java.util.Arrays;
 import java.util.List;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +13,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.core.env.Environment;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -38,6 +41,9 @@ public class SecurityConfig {
     // Constantes para valores repetidos
     private static final String CONTENT_TYPE_JSON = "application/json";
     private static final String HEADER_CONTENT_TYPE = "Content-Type";
+
+    private static final String PROFILE_PRODUCAO = "prod";
+    private static final String ERRO_CORS_ORIGEM_UNICA = "Configuração CORS inválida: 'cors.allowed-origins' não pode ser '*' em produção";
     
     // Templates de resposta JSON
     private static final String TEMPLATE_ERRO_AUTENTICACAO = """
@@ -61,7 +67,9 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
     private String jwkSetUri;
 
-    @Value("#{'${cors.allowed-origins}'.split(',')}")
+    @Value("${cors.allowed-origins:*}")
+    private String allowedOriginsProperty;
+
     private List<String> allowedOrigins;
 
     @Value("#{'${cors.allowed-methods}'.split(',')}")
@@ -72,6 +80,24 @@ public class SecurityConfig {
 
     @Value("${cors.max-age:3600}")
     private long maxAge;
+
+    private final Environment environment;
+
+    public SecurityConfig(Environment environment) {
+        this.environment = environment;
+    }
+
+    @PostConstruct
+    public void validarConfiguracaoCors() {
+        this.allowedOrigins = Arrays.stream(allowedOriginsProperty.split(","))
+            .map(String::trim)
+            .toList();
+
+        boolean producao = Arrays.asList(environment.getActiveProfiles()).contains(PROFILE_PRODUCAO);
+        if (producao && allowedOrigins.contains("*")) {
+            throw new IllegalStateException(ERRO_CORS_ORIGEM_UNICA);
+        }
+    }
 
     /**
      * Configuração principal da cadeia de filtros de segurança
