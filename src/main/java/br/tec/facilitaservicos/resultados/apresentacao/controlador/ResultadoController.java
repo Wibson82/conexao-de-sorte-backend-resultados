@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
 
 import br.tec.facilitaservicos.resultados.aplicacao.servico.ResultadoService;
 import br.tec.facilitaservicos.resultados.apresentacao.dto.EstatisticasDto;
@@ -26,6 +27,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -51,6 +53,7 @@ import reactor.core.publisher.Mono;
  */
 @RestController
 @RequestMapping("/api/resultados")
+@Validated
 @Tag(name = "Resultados", description = "API para consulta de resultados de loteria")
 public class ResultadoController {
 
@@ -167,7 +170,7 @@ public class ResultadoController {
     @GetMapping(value = "/ultimo/{horario}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<ResultadoDto>> buscarUltimoPorHorario(
             @Parameter(description = "Horário do resultado", example = "14:00")
-            @PathVariable String horario
+            @PathVariable @Pattern(regexp = "^\\d{2}:\\d{2}$", message = "Horário deve estar no formato HH:mm") String horario
     ) {
         return service.buscarUltimoPorHorario(horario)
             .map(ResponseEntity::ok)
