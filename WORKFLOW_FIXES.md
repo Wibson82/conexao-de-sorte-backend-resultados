@@ -91,37 +91,44 @@ O Cosign estava tentando assinar a imagem usando apenas o digest SHA256, sem o n
    
    **Motivo:** O digest SHA256 estava sendo truncado ou malformado, causando erro de parsing. Usar tags é mais confiável para assinatura.
 
-## ❌ Erro de Login no Azure - Subscription ID Ausente
+## ❌ Erro de Login no Azure - Tenant ID Incorreto
 
 ### 🔍 Problema:
 ```
-Error: Login failed with Error: Ensure 'subscription-id' is supplied or 'allow-no-subscriptions' is 'true'.
+Error: Failed to resolve tenant '***'.
+AADSTS90002: Tenant '6rn8q~qm4my4wyriwlhfg4ni0fl.1~ihaglvmbw.' not found.
 ```
 
 ### 🔍 Causa:
-O secret `AZURE_SUBSCRIPTION_ID` não está definido no GitHub Actions Secrets, mas é necessário para o login OIDC no Azure.
+O valor do secret `AZURE_TENANT_ID` está incorreto. O valor atual parece ser um **client secret** em vez de um **tenant ID**.
+
+**Formato correto:**
+- ✅ **Tenant ID**: `12345678-1234-1234-1234-123456789012` (formato UUID)
+- ❌ **Client Secret**: `6rn8q~qm4my4wyriwlhfg4ni0fl.1~ihaglvmbw.` (string alfanumérica)
 
 ### ✅ Solução:
 
-**Secrets necessários no GitHub (Settings → Secrets and variables → Actions):**
+**1. Verificar e corrigir os secrets no GitHub:**
 
-1. **AZURE_CLIENT_ID** ✅ (já definido)
-2. **AZURE_CLIENT_SECRET** ✅ (já definido) 
-3. **AZURE_TENANT_ID** ✅ (já definido)
-4. **AZURE_SUBSCRIPTION_ID** ❌ (FALTANDO - precisa ser adicionado)
-5. **AZURE_KEYVAULT_ENDPOINT** (se usando Key Vault)
+| Secret | Formato Esperado | Status |
+|--------|------------------|--------|
+| `AZURE_CLIENT_ID` | UUID (12345678-1234-...) | ✅ |
+| `AZURE_CLIENT_SECRET` | String alfanumérica | ✅ |
+| `AZURE_TENANT_ID` | UUID (12345678-1234-...) | ❌ **INCORRETO** |
+| `AZURE_SUBSCRIPTION_ID` | UUID (12345678-1234-...) | ❓ |
 
-**Como obter o Subscription ID:**
+**2. Como obter os valores corretos:**
 ```bash
 # Via Azure CLI
-az account show --query id -o tsv
+az account show --query '{tenantId: tenantId, subscriptionId: id}' -o table
 
 # Via Portal Azure
-# Vá em "Subscriptions" e copie o "Subscription ID"
+# Tenant ID: Azure Active Directory → Properties → Tenant ID
+# Subscription ID: Subscriptions → [sua subscription] → Subscription ID
 ```
 
-**Alternativa (se não usar subscription):**
-Alterar o workflow para `allow-no-subscriptions: true`, mas não é recomendado para produção.
+**3. Verificar se os secrets estão trocados:**
+Parece que o `AZURE_TENANT_ID` pode estar com o valor do `AZURE_CLIENT_SECRET`. Verifique se os valores não foram trocados durante a configuração.
 
 ## ⚠️ Warning do Google Guice com Java 24
 
