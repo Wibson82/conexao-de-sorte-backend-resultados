@@ -209,11 +209,16 @@ public class SecurityConfig {
         // Métodos HTTP permitidos
         configuration.setAllowedMethods(allowedMethods);
         
-        // Headers permitidos
-        configuration.setAllowedHeaders(List.of("*"));
-        
-        // Permitir cookies/credenciais
-        configuration.setAllowCredentials(allowCredentials);
+        // Headers permitidos (lista explícita)
+        configuration.setAllowedHeaders(List.of(
+            "Authorization",
+            "Content-Type"
+        ));
+
+        // Permitir cookies/credenciais apenas quando necessário
+        if (allowCredentials) {
+            configuration.setAllowCredentials(true);
+        }
         
         // Cache preflight
         configuration.setMaxAge(maxAge);
