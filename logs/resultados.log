@@ -205,3 +205,27 @@ Caused by: org.springframework.beans.factory.support.BeanDefinitionOverrideExcep
 	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContextInternal(DefaultCacheAwareContextLoaderDelegate.java:225)
 	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContext(DefaultCacheAwareContextLoaderDelegate.java:152)
 	... 80 common frames omitted
+2025-08-26 17:07:38.472 [main] INFO  [,] b.t.f.r.a.c.ResultadoControllerRateLimiterTest - Starting ResultadoControllerRateLimiterTest using Java 24.0.2 with PID 57643 (started by dev-mac-os in /Volumes/NVME/Projetos/conexao-de-sorte-backend-resultados)
+2025-08-26 17:07:38.473 [main] DEBUG [,] b.t.f.r.a.c.ResultadoControllerRateLimiterTest - Running with Spring Boot v3.5.5, Spring v6.2.10
+2025-08-26 17:07:38.473 [main] INFO  [,] b.t.f.r.a.c.ResultadoControllerRateLimiterTest - The following 1 profile is active: "test"
+2025-08-26 17:07:39.338 [main] INFO  [,] b.t.f.r.a.c.ResultadoControllerRateLimiterTest - Started ResultadoControllerRateLimiterTest in 1.052 seconds (process running for 1.468)
+2025-08-26 17:07:39.426 [main] ERROR [,] o.s.t.w.r.server.ExchangeResult - Request details for assertion failure:
+
+> GET /api/resultados/estatisticas
+> WebTestClient-Request-Id: [3]
+
+No content
+
+< 200 OK OK
+< Content-Type: [application/json]
+< Content-Length: [39]
+< Cache-Control: [no-cache, no-store, max-age=0, must-revalidate]
+< Pragma: [no-cache]
+< Expires: [0]
+< X-Content-Type-Options: [nosniff]
+< X-Frame-Options: [DENY]
+< X-XSS-Protection: [0]
+< Referrer-Policy: [no-referrer]
+
+{"totalResultados":1,"totalSorteios":1}
+

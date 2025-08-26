@@ -252,7 +252,9 @@
                     <compilerArgs>
                         <arg>-Xlint:deprecation</arg>
                         <arg>-Xlint:unchecked</arg>
+                        <arg>-Xlint:removal</arg>
                         <arg>-parameters</arg>
+                        <arg>--add-opens=java.base/sun.misc=ALL-UNNAMED</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
@@ -271,6 +273,9 @@
                         -XX:+UseG1GC
                         -Djava.awt.headless=true
                         -Dtestcontainers.reuse.enable=false
+                        --add-opens=java.base/sun.misc=ALL-UNNAMED
+                        --add-opens=java.base/java.lang=ALL-UNNAMED
+                        -XX:+EnableDynamicAgentLoading
                     </argLine>
                 </configuration>
             </plugin>
