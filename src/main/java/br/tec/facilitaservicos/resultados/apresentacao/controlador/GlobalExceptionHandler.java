@@ -17,6 +17,8 @@ import org.springframework.web.server.ServerWebInputException;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import reactor.core.publisher.Mono;
 
 /**
@@ -48,6 +50,23 @@ public class GlobalExceptionHandler {
             ));
 
         ErrorResponse response = ErrorResponse.validacao("Dados inválidos", erros);
+        return Mono.just(ResponseEntity.badRequest().body(response));
+    }
+
+    /**
+     * Trata violações de restrição de parâmetros
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleConstraintViolation(ConstraintViolationException ex) {
+        logger.warn("Violação de restrição: {}", ex.getMessage());
+
+        Map<String, String> erros = ex.getConstraintViolations().stream()
+            .collect(java.util.stream.Collectors.toMap(
+                v -> v.getPropertyPath().toString(),
+                ConstraintViolation::getMessage
+            ));
+
+        ErrorResponse response = ErrorResponse.validacao("Parâmetros inválidos", erros);
         return Mono.just(ResponseEntity.badRequest().body(response));
     }
 
