@@ -20,7 +20,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ toLower(github.repository) }}
+  IMAGE_NAME: ${{ github.repository }}
   SERVICE_NAME: resultados
 
 concurrency:
@@ -75,10 +75,20 @@ jobs:
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tags: ${{ steps.meta.outputs.tags }}
+      image-name-lower: ${{ steps.image_name.outputs.image_name_lower }}
 
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
+
+      - name: 🔧 Compute lowercase image name
+        id: image_name
+        run: |
+          set -euo pipefail
+          # github.repository pode conter maiúsculas. Forçar lowercase para OCI.
+          REPO='${{ env.IMAGE_NAME }}'
+          IMG_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          echo "image_name_lower=$IMG_LOWER" >> "$GITHUB_OUTPUT"
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -94,7 +104,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.image_name_lower }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -149,21 +159,21 @@ jobs:
         id: resolve_tag
         run: |
           set -euo pipefail
-          tags='${{ needs.build-image.outputs.image-tags }}'
-          # normalize separators and pick first non-empty tag
-          first=$(echo "$tags" | tr ',' '\n' | sed '/^\s*$/d' | head -n1)
-          first=$(echo "$first" | tr -d '[:space:]')
+          tags="${{ needs.build-image.outputs.image-tags }}"
+          # normalizar separadores e pegar a primeira tag
+          first=$(echo "$tags" | tr ',' '\n' | sed '/^\s*$/d' | head -n1 | tr -d '[:space:]')
           if [ -z "$first" ]; then
             echo "No image tag found from build metadata. Exiting." >&2
             exit 1
           fi
-          # if tag doesn't include registry prefix, prefix it
+          # se a tag não tem registry, prefixar com registry + image_name_lower
           if [[ "$first" != *"/"*":"* && "$first" != *"${{ env.REGISTRY }}"* ]]; then
-            IMAGE="${{ env.REGISTRY }}/$first"
+            PREFIX="${{ env.REGISTRY }}/${{ needs.build-image.outputs.image-name-lower }}"
+            IMAGE="$PREFIX:$first"
           else
             IMAGE="$first"
           fi
-          # force lowercase to satisfy OCI rules
+          # forçar lowercase por segurança
           IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
@@ -181,6 +191,7 @@ jobs:
             curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
             chmod +x /usr/local/bin/cosign
           fi
+
       - name: ✍️ Sign image with Cosign (keyless)
         env:
           COSIGN_EXPERIMENTAL: "1"
@@ -239,7 +250,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG=develop
-          IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG
+          IMAGE=${{ env.REGISTRY }}/${{ needs.build-image.outputs.image-name-lower }}:$TAG
           docker pull "$IMAGE"
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
@@ -328,7 +339,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG=latest
-          IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG
+          IMAGE=${{ env.REGISTRY }}/${{ needs.build-image.outputs.image-name-lower }}:$TAG
 
           docker tag resultados-microservice resultados-microservice:backup-$(date +%Y%m%d-%H%M%S) || true
           docker pull "$IMAGE"
