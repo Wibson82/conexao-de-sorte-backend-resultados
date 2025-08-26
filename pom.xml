@@ -28,6 +28,7 @@
         
         <!-- Testcontainers -->
         <testcontainers.version>1.20.4</testcontainers.version>
+        
     </properties>
 
     <dependencyManagement>
@@ -275,7 +276,6 @@
                         -Dtestcontainers.reuse.enable=false
                         --add-opens=java.base/sun.misc=ALL-UNNAMED
                         --add-opens=java.base/java.lang=ALL-UNNAMED
-                        -XX:+EnableDynamicAgentLoading
                     </argLine>
                 </configuration>
             </plugin>
