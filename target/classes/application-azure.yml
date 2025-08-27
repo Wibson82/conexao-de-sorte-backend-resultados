@@ -26,10 +26,10 @@ spring:
       # Azure Key Vault Secrets
       keyvault:
         secret:
-          enabled: true
-          endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
+          enabled: ${AZURE_KEYVAULT_ENABLED:false}
+          endpoint: ${AZURE_KEYVAULT_ENDPOINT:https://dummy.vault.azure.net/}
           property-sources:
-            - endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
+            - endpoint: ${AZURE_KEYVAULT_ENDPOINT:https://dummy.vault.azure.net/}
               name: resultados-microservice-secrets
               case-sensitive: false
 
