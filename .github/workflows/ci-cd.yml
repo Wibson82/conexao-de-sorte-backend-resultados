@@ -267,8 +267,14 @@ jobs:
           echo "SSL_KEYSTORE_PATH=$(get conexao-de-sorte-ssl-keystore-path)" >> $GITHUB_ENV
           echo "SSL_KEYSTORE_PASSWORD=$(get conexao-de-sorte-ssl-keystore-password)" >> $GITHUB_ENV
           
-          # CORS configuration
-          echo "CORS_ALLOWED_ORIGINS=$(get conexao-de-sorte-cors-allowed-origins)" >> $GITHUB_ENV
+          # CORS configuration (override * for production security)
+          CORS_ORIGINS=$(get conexao-de-sorte-cors-allowed-origins)
+          if [ "$CORS_ORIGINS" = "*" ]; then
+            echo "CORS_ALLOWED_ORIGINS=https://conexaodesorte.com.br,https://www.conexaodesorte.com.br,https://app.conexaodesorte.com.br" >> $GITHUB_ENV
+            echo "Overriding CORS origins from '*' to specific domains for production security" >&2
+          else
+            echo "CORS_ALLOWED_ORIGINS=$CORS_ORIGINS" >> $GITHUB_ENV
+          fi
           echo "CORS_ALLOW_CREDENTIALS=$(get conexao-de-sorte-cors-allow-credentials)" >> $GITHUB_ENV
           
           # Azure Client Secret (para solução híbrida)
@@ -366,8 +372,8 @@ jobs:
             -e conexao_de_sorte_ssl_enabled="${SSL_ENABLED}" \
             -e conexao_de_sorte_ssl_keystore_path="${SSL_KEYSTORE_PATH}" \
             -e conexao_de_sorte_ssl_keystore_password="${SSL_KEYSTORE_PASSWORD}" \
-            -e conexao_de_sorte_cors_allowed_origins="${CORS_ALLOWED_ORIGINS}" \
-            -e conexao_de_sorte_cors_allow_credentials="${CORS_ALLOW_CREDENTIALS}" \
+            -e cors_allowed_origins="${CORS_ALLOWED_ORIGINS}" \
+            -e cors_allow_credentials="${CORS_ALLOW_CREDENTIALS}" \
             --label "traefik.enable=true" \
             --label "traefik.docker.network=conexao-network" \
             --label "traefik.http.routers.resultados.rule=Host(\`resultados.conexaodesorte.com.br\`)" \
