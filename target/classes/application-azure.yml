@@ -16,6 +16,9 @@ spring:
 
   # ===== SPRING CLOUD AZURE (DESABILITADO POR PADRÃO) =====
   cloud:
+    # Desabilitar verificação de compatibilidade Spring Boot/Cloud
+    compatibility-verifier:
+      enabled: false
     azure:
       profile:
         tenant-id: ${AZURE_TENANT_ID:}
