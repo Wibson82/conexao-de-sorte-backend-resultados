@@ -209,14 +209,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Resolver Key Vault + carregar segredos (OIDC)
-        env:
-          # GitHub secrets fallback
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
-          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      - name: Load Azure Key Vault secrets (100% OIDC)
         run: |
           set -euo pipefail
           echo "Loading secrets from Azure Key Vault: conexao-de-sorte-results-microservice" >&2
@@ -225,21 +218,14 @@ jobs:
 
           get() { 
             echo "Fetching secret: $1" >&2
-            SECRET_VALUE=$(az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv 2>/dev/null || echo "")
-            if [ -z "$SECRET_VALUE" ]; then
-              echo "Warning: Secret $1 not found in Azure Key Vault, trying GitHub secret" >&2
-              # Fallback para GitHub secrets quando Azure Key Vault não tem o secret
-              case $1 in
-                conexao-de-sorte-database-url) echo "${DATABASE_URL:-}" ;;
-                conexao-de-sorte-database-username) echo "${DATABASE_USERNAME:-}" ;;
-                conexao-de-sorte-database-password) echo "${DATABASE_PASSWORD:-}" ;;
-                conexao-de-sorte-redis-password) echo "${REDIS_PASSWORD:-}" ;;
-                conexao-de-sorte-jwt-secret) echo "${JWT_SECRET:-}" ;;
-                *) echo "" ;;
-              esac
-            else
-              echo "$SECRET_VALUE"
+            SECRET_VALUE=$(az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv 2>/dev/null)
+            if [ $? -ne 0 ] || [ -z "$SECRET_VALUE" ]; then
+              echo "ERROR: Secret $1 not found in Azure Key Vault $VAULT" >&2
+              echo "Available secrets in vault:" >&2
+              az keyvault secret list --vault-name "$VAULT" --query '[].name' -o tsv >&2
+              exit 1
             fi
+            echo "$SECRET_VALUE"
           }
 
           # Database secrets
