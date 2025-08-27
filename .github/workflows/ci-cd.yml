@@ -267,10 +267,9 @@ jobs:
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
 
-          # Create logs directory
+          # Create logs directory (use home directory to avoid permission issues)
           echo "📁 Creating logs directory..."
-          sudo mkdir -p /var/log/resultados
-          sudo chown $(whoami):$(whoami) /var/log/resultados
+          mkdir -p $HOME/conexao-logs/resultados
           
           # Run new container
           echo "▶️ Starting new container..."
@@ -282,7 +281,7 @@ jobs:
             --health-cmd="curl -f http://localhost:8082/actuator/health || exit 1" \
             --health-interval=30s --health-timeout=10s --health-retries=3 --health-start-period=60s \
             -v "${SECRETS_DIR}":/run/secrets:ro \
-            -v /var/log/resultados:/app/logs \
+            -v $HOME/conexao-logs/resultados:/app/logs \
             -e JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx1024m -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Dfile.encoding=UTF-8" \
             -e SPRING_PROFILES_ACTIVE=prod,azure \
             -e ENVIRONMENT=production \
