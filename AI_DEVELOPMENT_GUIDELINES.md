@@ -17,6 +17,7 @@ Este documento estabelece as diretrizes obrigatórias para todos os modelos de i
 - **Português obrigatório** - Toda comunicação, documentação e comentários em português
 - **Código reativo** - Sempre usar programação reativa e não-bloqueante
 - **Constantes descritivas** - NUNCA usar valores hardcoded, sempre criar constantes
+- **Azure Key Vault flexível** - SEMPRE usar variáveis de ambiente para endpoints e nomes do Key Vault
 - **Commits descritivos obrigatórios** - Todo prompt implementado ou etapa concluída deve gerar commit IMEDIATAMENTE
 - **Executar git add . && git commit** - OBRIGATÓRIO após cada implementação
 - **Solicitar consentimento** - NUNCA remover arquivos sem autorização explícita do usuário
@@ -28,6 +29,7 @@ Este documento estabelece as diretrizes obrigatórias para todos os modelos de i
 - Endpoints sem validação de entrada
 - Logs sem informações de contexto
 - Configurações hardcoded
+- Endpoints do Azure Key Vault hardcoded
 - Senhas ou tokens em código
 - Comunicação em inglês (exceto nomes técnicos)
 - Código bloqueante ou síncrono

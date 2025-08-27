@@ -48,6 +48,41 @@ flyway:
 ### 🌩️ **2. Spring Cloud Azure Incompatibilidade**
 **Problema:** `Spring Boot [3.5.5] is not compatible with Spring Cloud release train`
 **Solução:** `spring.cloud.compatibility-verifier.enabled: false`
+
+### 🔐 **3. Azure Key Vault Endpoint Hardcoded**
+**Problema CRÍTICO:** Endpoint do Azure Key Vault estava hardcoded no código
+**Sintoma:** `Failed to configure KeyVault property source 'conexao-de-sorte-results-microservice'`
+
+**Solução Antes:**
+```yaml
+spring:
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          property-sources:
+            - endpoint: https://kv-conexao-de-sorte.vault.azure.net/  # ❌ HARDCODED
+              name: conexao-de-sorte-results-microservice
+```
+
+**Solução Depois:**
+```yaml
+spring:
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          property-sources:
+            - endpoint: ${AZURE_KEYVAULT_ENDPOINT:}  # ✅ VARIÁVEL DE AMBIENTE
+              name: ${AZURE_KEYVAULT_NAME:conexao-de-sorte-results-microservice}
+```
+
+**Lições CRÍTICAS:**
+- **NUNCA** hardcode endpoints do Azure Key Vault
+- Use `${AZURE_KEYVAULT_ENDPOINT:}` para flexibilidade entre ambientes
+- Use `${AZURE_KEYVAULT_NAME:}` para permitir diferentes Key Vaults
+- Valores hardcoded impedem deployment em diferentes ambientes (dev/staging/prod)
+- **INSTRUÇÃO PARA AGENTES DE IA:** Sempre use variáveis de ambiente para configurações do Azure
 **Causa:** Spring Cloud Azure 5.18.0 + Spring Boot 3.5.5
 
 ### 🔧 **3. Redis SerializationContext**

@@ -34,7 +34,7 @@ spring:
           enabled: true
           property-sources:
             - endpoint: ${AZURE_KEYVAULT_ENDPOINT}
-              name: conexao-de-sorte-results-microservice
+              name: ${AZURE_KEYVAULT_ENDPOINT:}
 
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
