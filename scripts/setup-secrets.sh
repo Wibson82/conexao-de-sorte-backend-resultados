@@ -88,13 +88,59 @@ main() {
     # Fetch and create secret files
     # Database secrets
     log "🗄️ Processing database secrets..."
-    DB_URL=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-url" --query value -o tsv 2>/dev/null || echo "")
+    # Preferred secret names (R2DBC)
+    DB_R2DBC_URL=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-r2dbc-url" --query value -o tsv 2>/dev/null || echo "")
     DB_USER=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-username" --query value -o tsv 2>/dev/null || echo "")
     DB_PASSWORD=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-password" --query value -o tsv 2>/dev/null || echo "")
-    
-    create_secret_file "DB_URL" "$DB_URL"
-    create_secret_file "DB_USER" "$DB_USER"
-    create_secret_file "DB_PASSWORD" "$DB_PASSWORD"
+    # Backward-compatible fallback (deprecated): conexao-de-sorte-database-url
+    if [[ -z "$DB_R2DBC_URL" || "$DB_R2DBC_URL" == "null" ]]; then
+        DB_R2DBC_URL=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-url" --query value -o tsv 2>/dev/null || echo "")
+    fi
+
+    # Determine database name per microservice (resultados)
+    # Priority:
+    # 1) Specific secret: conexao-de-sorte-resultados-database-name
+    # 2) Generic secret:  conexao-de-sorte-database-name
+    # 3) Env var:         DATABASE_NAME
+    # 4) Conventional:    conexao_sorte_resultados
+    DB_NAME_SPECIFIC=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-resultados-database-name" --query value -o tsv 2>/dev/null || echo "")
+    DB_NAME_GENERIC=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-name" --query value -o tsv 2>/dev/null || echo "")
+    DB_NAME=${DB_NAME_SPECIFIC:-}
+    if [[ -z "$DB_NAME" || "$DB_NAME" == "null" ]]; then
+        DB_NAME=${DB_NAME_GENERIC:-}
+    fi
+    if [[ -z "$DB_NAME" || "$DB_NAME" == "null" ]]; then
+        DB_NAME=${DATABASE_NAME:-}
+    fi
+    if [[ -z "$DB_NAME" || "$DB_NAME" == "null" ]]; then
+        DB_NAME="conexao_sorte_resultados"
+    fi
+
+    # If the R2DBC URL has no database path, append the project-specific DB name
+    # URL examples:
+    #   r2dbc:mysql://host:3306             -> r2dbc:mysql://host:3306/conexao_sorte_resultados
+    #   r2dbc:mysql://host:3306/foobar      -> keep as-is
+    if [[ -n "$DB_R2DBC_URL" && "$DB_R2DBC_URL" != "null" ]]; then
+        # Extract path after protocol and host:port
+        # If no "/" after host:port, append "/$DB_NAME"
+        if [[ "$DB_R2DBC_URL" =~ ^r2dbc:mysql://[^/]+$ ]]; then
+            DB_R2DBC_URL="$DB_R2DBC_URL/$DB_NAME"
+        fi
+    fi
+
+    # Expor secrets para Spring via configtree
+    create_secret_file "spring.r2dbc.url" "$DB_R2DBC_URL"
+    create_secret_file "spring.r2dbc.username" "$DB_USER"
+    create_secret_file "spring.r2dbc.password" "$DB_PASSWORD"
+
+    # Gerar propriedades de Flyway a partir do R2DBC URL (when possible)
+    if [[ -n "$DB_R2DBC_URL" && "$DB_R2DBC_URL" != "null" ]]; then
+        # Convert r2dbc:mysql://host:port/db?...  -> jdbc:mysql://host:port/db?... (remover params incompatíveis se necessário)
+        JDBC_URL="${DB_R2DBC_URL/r2dbc:mysql:/jdbc:mysql:}"
+        create_secret_file "spring.flyway.url" "$JDBC_URL"
+    fi
+    create_secret_file "spring.flyway.user" "$DB_USER"
+    create_secret_file "spring.flyway.password" "$DB_PASSWORD"
     
     # Redis secrets
     log "🚀 Processing Redis secrets..."

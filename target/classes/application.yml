@@ -8,18 +8,26 @@ spring:
   
   main:
     allow-bean-definition-overriding: true
+  jackson:
+    time-zone: America/Sao_Paulo
+    locale: pt_BR
   
   # Configtree secret management
   config:
     import:
+      - optional:configtree:/run/secrets/
       - optional:configtree:/etc/secrets/azure/
       - optional:configtree:/mnt/secrets/
       - optional:file:./secrets.properties
-    
+
+  # Em produção, valores vêm do configtree (spring.r2dbc.*); não definir aqui para evitar fallbacks inseguros
   r2dbc:
-    url: r2dbc:mysql://localhost:3306/conexao_sorte_resultados
-    username: ${DB_USERNAME:conexao_sorte}
-    password: ${DB_PASSWORD:}  # Removed default password for security
+    pool:
+      enabled: true
+      initial-size: 10
+      max-size: 50
+      max-idle-time: 30m
+      max-acquire-time: 60s
     pool:
       enabled: true
       initial-size: 10
@@ -28,11 +36,9 @@ spring:
       max-acquire-time: 60s
       
   # Flyway para migrations (usa JDBC)
+  # Em produção, valores vêm do configtree (spring.flyway.*) se necessário
   flyway:
     enabled: true
-    url: jdbc:mysql://localhost:3306/conexao_sorte_resultados
-    user: ${DB_USERNAME:conexao_sorte}
-    password: ${DB_PASSWORD:}  # Removed default password for security
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-migration: false
