@@ -92,6 +92,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Mudar para usuário não-root
 USER appuser:appgroup
 
+ARG VERSION=1.0.0
+ARG BUILD_DATE=unknown
+ARG VCS_REF=unknown
 # Labels para metadata
 LABEL org.opencontainers.image.title="Conexão de Sorte - Resultados"
 LABEL org.opencontainers.image.description="Microserviço de Resultados de Loterias"
@@ -103,9 +106,103 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.url="https://conexaodesorte.com"
 LABEL org.opencontainers.image.source="https://github.com/conexaodesorte/resultados"
 
-# Script de entrada com pré-checagem de conexão ao banco
-COPY --chown=appuser:appgroup docker/docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+# Script de entrada com pré-checagem de conexão ao banco (embutido no build)
+RUN printf '%s\n' '#!/bin/sh' \
+    'set -eu' \
+    '' \
+    'log() {' \
+    '  printf "%s %s\\n" "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"' \
+    '}' \
+    '' \
+    'SECRETS_DIR=${SECRETS_DIR:-/run/secrets}' \
+    'R2DBC_FILE="$SECRETS_DIR/spring.r2dbc.url"' \
+    'JDBC_FILE="$SECRETS_DIR/spring.flyway.url"' \
+    '' \
+    'has_nc() { command -v nc >/dev/null 2>&1; }' \
+    '' \
+    'can_connect() {' \
+    '  host="$1"; port="$2"' \
+    '  if has_nc; then' \
+    '    log "→ Testando TCP $host:$port (nc)"' \
+    '    nc -z -w 2 "$host" "$port" >/dev/null 2>&1' \
+    '  else' \
+    '    log "→ Testando TCP $host:$port (/dev/tcp)"' \
+    '    (echo > /dev/tcp/"$host"/"$port") >/dev/null 2>&1 || return 1' \
+    '  fi' \
+    '}' \
+    '' \
+    'rewrite_urls() {' \
+    '  new_hostport="$1"' \
+    '  log "⤴️  Reescrevendo URLs para host:porta '"'"'$new_hostport'"'"'"'"'"'""'"""'"''"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'""'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'""'"'"''"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'""'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'"'""'"'"'"'"'"'"'"''"'"'"'"'"'"'"'"'"'"''"'"'"'"'"'""'"'"'"'"'"'"''"'"'"'"'"'""'' \
+    '  if [ -f "$R2DBC_FILE" ]; then' \
+    '    r2dbc=$(cat "$R2DBC_FILE")' \
+    '    proto="r2dbc:mysql://"' \
+    '    rest="${r2dbc#${proto}}"' \
+    '    rest_no_host="${rest#*/}"' \
+    '    echo "${proto}${new_hostport}/${rest_no_host}" > "$R2DBC_FILE"' \
+    '    log "R2DBC URL -> $(cat "$R2DBC_FILE")"' \
+    '  fi' \
+    '  if [ -f "$JDBC_FILE" ]; then' \
+    '    jdbc=$(cat "$JDBC_FILE")' \
+    '    proto="jdbc:mysql://"' \
+    '    rest="${jdbc#${proto}}"' \
+    '    rest_no_host="${rest#*/}"' \
+    '    echo "${proto}${new_hostport}/${rest_no_host}" > "$JDBC_FILE"' \
+    '    log "JDBC URL  -> $(cat "$JDBC_FILE")"' \
+    '  fi' \
+    '}' \
+    '' \
+    'preflight_db() {' \
+    '  [ -f "$R2DBC_FILE" ] || return 0' \
+    '  url=$(cat "$R2DBC_FILE")' \
+    '  log "🔎 URL R2DBC atual: $url"' \
+    '  base="${url#r2dbc:mysql://}"' \
+    '  hostport="${base%%/*}"' \
+    '  host="${hostport%%:*}"' \
+    '  port="${hostport#*:}"' \
+    '  [ "$port" = "$host" ] && port=3306' \
+    '  log "🔎 Host alvo: $host | Porta: $port"' \
+    '  gw=$(ip route 2>/dev/null | awk '\''/default/ {print $3; exit}'\'')' \
+    '  [ -z "${gw:-}" ] && gw=$(awk '\''$2==00000000 {print $3}'\'' /proc/net/route 2>/dev/null | head -n1)' \
+    '  log "🌐 Gateway padrão: ${gw:-desconhecido}"' \
+    '  if command -v ip >/dev/null 2>&1; then' \
+    '    log "🌐 Interfaces:"' \
+    '    ip -o -4 addr show | awk '\''{print "    "$2" -> "$4}'\'' | while read -r line; do log "$line"; done' \
+    '  fi' \
+    '  if can_connect "$host" "$port"; then' \
+    '    log "✅ DB alcançável em $host:$port"' \
+    '    return 0' \
+    '  fi' \
+    '  log "⚠️ DB inacessível em $host:$port. Tentando fallbacks..."' \
+    '  if can_connect "conexao-mysql" "$port"; then' \
+    '    log "🔁 Alternando para conexao-mysql:$port"' \
+    '    rewrite_urls "conexao-mysql:$port"' \
+    '    return 0' \
+    '  fi' \
+    '  if can_connect "host.docker.internal" "$port"; then' \
+    '    log "🔁 Alternando para host.docker.internal:$port"' \
+    '    rewrite_urls "host.docker.internal:$port"' \
+    '    return 0' \
+    '  fi' \
+    '  if [ -n "${gw:-}" ] && can_connect "$gw" "$port"; then' \
+    '    log "🔁 Alternando para gateway $gw:$port"' \
+    '    rewrite_urls "$gw:$port"' \
+    '    return 0' \
+    '  fi' \
+    '  if can_connect "127.0.0.1" "$port" || can_connect "localhost" "$port"; then' \
+    '    log "🔁 Alternando para localhost:$port"' \
+    '    rewrite_urls "127.0.0.1:$port"' \
+    '    return 0' \
+    '  fi' \
+    '  log "❌ Nenhum host de DB acessível a partir do container. Prosseguindo; a aplicação pode falhar."' \
+    '}' \
+    '' \
+    'preflight_db || true' \
+    'log "🚀 Iniciando aplicação Java"' \
+    'exec dumb-init -- java -jar /app/app.jar' \
+    > /app/docker-entrypoint.sh && \
+    chmod +x /app/docker-entrypoint.sh
+
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 
