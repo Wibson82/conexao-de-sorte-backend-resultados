@@ -107,7 +107,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -269,7 +269,8 @@ jobs:
 
           # Create logs directory
           echo "📁 Creating logs directory..."
-          mkdir -p /var/log/resultados
+          sudo mkdir -p /var/log/resultados
+          sudo chown $(whoami):$(whoami) /var/log/resultados
           
           # Run new container
           echo "▶️ Starting new container..."
