@@ -194,7 +194,7 @@ jobs:
     needs: [build-image, sign-image]
     runs-on: [self-hosted, hostinger-runner]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
-    name: 🌟 Deploy to Production (self-hosted, OIDC)
+    name: 🌟 Deploy to Production (self-hosted)
     permissions:
       id-token: write
       contents: read
@@ -202,14 +202,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
+      - name: Azure Login
+        uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
 
-      - name: Load Azure Key Vault secrets (100% OIDC)
+      - name: Load Azure Key Vault secrets
         run: |
           set -euo pipefail
           echo "Loading secrets from Azure Key Vault: conexao-de-sorte-results-microservice" >&2
