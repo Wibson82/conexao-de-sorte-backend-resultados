@@ -28,21 +28,26 @@ services:
     ports:
       - "8082:8082"
     environment:
-      # Database
-      - DB_HOST=resultados-mysql
-      - DB_PORT=3306
-      - DB_NAME=conexao_sorte_resultados
-      - DB_USERNAME=resultados_user
-      - DB_PASSWORD=${DB_PASSWORD}
+      # Azure OIDC Configuration
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_KEYVAULT_ENDPOINT=https://conexao-de-sorte-results-microservice.vault.azure.net/
       
-      # Redis
-      - REDIS_HOST=resultados-redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      # Database (fallbacks para desenvolvimento local)
+      - conexao_de_sorte_database_url=${conexao_de_sorte_database_url:-r2dbc:mysql://resultados-mysql:3306/conexao_sorte_resultados?useSSL=false&allowPublicKeyRetrieval=true}
+      - conexao_de_sorte_database_username=${conexao_de_sorte_database_username:-resultados_user}
+      - conexao_de_sorte_database_password=${conexao_de_sorte_database_password:-}
       
-      # JWT
-      - JWT_JWKS_URI=http://autenticacao-service:8081/.well-known/jwks.json
-      - JWT_ISSUER=https://auth.conexaodesorte.com
+      # Redis (fallbacks para desenvolvimento local)
+      - conexao_de_sorte_redis_host=${conexao_de_sorte_redis_host:-resultados-redis}
+      - conexao_de_sorte_redis_port=${conexao_de_sorte_redis_port:-6379}
+      - conexao_de_sorte_redis_password=${conexao_de_sorte_redis_password:-}
+      
+      # JWT (segredos Azure Key Vault)
+      - conexao_de_sorte_jwt_jwks_uri=${conexao_de_sorte_jwt_jwks_uri:-http://autenticacao-service:8081/.well-known/jwks.json}
+      - conexao_de_sorte_jwt_issuer=${conexao_de_sorte_jwt_issuer:-https://auth.conexaodesorte.com}
+      - conexao_de_sorte_jwt_secret=${conexao_de_sorte_jwt_secret:-}
+      - conexao_de_sorte_jwt_key_id=${conexao_de_sorte_jwt_key_id:-}
       
       # Features
       - FEATURE_RESULTADOS_MS=true
@@ -115,10 +120,10 @@ services:
     ports:
       - "6380:6379"  # Porta diferente para evitar conflito
     environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PASSWORD=${conexao_de_sorte_redis_password:-}
     command: >
       redis-server
-      --requirepass ${REDIS_PASSWORD}
+      --requirepass ${conexao_de_sorte_redis_password:-changeme}
       --maxmemory 512mb
       --maxmemory-policy allkeys-lru
       --tcp-keepalive 60
@@ -128,7 +133,7 @@ services:
     networks:
       - conexao-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${conexao_de_sorte_redis_password:-changeme}", "ping"]
       timeout: 20s
       retries: 5
 

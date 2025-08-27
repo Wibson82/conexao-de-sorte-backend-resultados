@@ -9,9 +9,9 @@ spring:
       - optional:configtree:/run/secrets/
 
   r2dbc:
-    url: ${SPRING_DATASOURCE_URL:${DB_URL:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados}}
-    username: ${DB_USERNAME:}
-    password: ${DB_PASSWORD:}
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${conexao-de-sorte-database-username:}
+    password: ${conexao-de-sorte-database-password:}
     pool:
       enabled: true
       initial-size: 10

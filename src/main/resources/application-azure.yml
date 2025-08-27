@@ -24,19 +24,25 @@ spring:
         tenant-id: ${AZURE_TENANT_ID:}
       credential:
         client-id: ${AZURE_CLIENT_ID:}
-        managed-identity-enabled: false
+        managed-identity-enabled: true
+        # OIDC Configuration - 100% keyless authentication
+        federated-token-credential-enabled: true
 
-      # Azure Key Vault Secrets - COMPLETAMENTE DESABILITADO sem configuração adequada
+      # Azure Key Vault Secrets - HABILITADO para buscar segredos
       keyvault:
         secret:
-          enabled: false
+          enabled: true
+          property-sources:
+            - endpoint: ${AZURE_KEYVAULT_ENDPOINT:https://conexao-de-sorte-results-microservice.vault.azure.net/}
+              name: conexao-de-sorte-results-microservice
+              refresh-period: PT30S
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
-  # Defaults seguros para Docker + override por configtree/env
+  # Segredos vindos do Azure Key Vault: conexao-de-sorte-results-microservice
   r2dbc:
-    url: ${SPRING_DATASOURCE_URL:${DB_URL:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados}}
-    username: ${DB_USERNAME:}
-    password: ${DB_PASSWORD:}
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${conexao-de-sorte-database-username:}
+    password: ${conexao-de-sorte-database-password:}
     pool:
       enabled: true
       initial-size: 10
@@ -54,10 +60,10 @@ spring:
   # ===== REDIS CONFIGURATION =====
   data:
     redis:
-      host: ${REDIS_HOST:}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      database: ${REDIS_DB:2}  # DB 2 para resultados
+      host: ${conexao-de-sorte-redis-host:conexao-redis}
+      port: ${conexao-de-sorte-redis-port:6379}
+      password: ${conexao-de-sorte-redis-password:}
+      database: ${conexao-de-sorte-redis-database:2}  # DB 2 para resultados
       timeout: 2000ms
       lettuce:
         pool:
@@ -78,8 +84,8 @@ spring:
       resourceserver:
         jwt:
           # Configuração para validação de tokens (não geração)
-          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:${JWT_JWKS_URI:http://localhost:8081/.well-known/jwks.json}}
-          issuer-uri: ${conexao-de-sorte-jwt-issuer:${JWT_ISSUER:https://auth.conexaodesorte.com}}
+          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:http://conexao-auth:8081/.well-known/jwks.json}
+          issuer-uri: ${conexao-de-sorte-jwt-issuer:https://auth.conexaodesorte.com}
 
 # ===== APLICAÇÃO ESPECÍFICA =====
 aplicacao:
@@ -88,13 +94,15 @@ aplicacao:
     versao: "@project.version@"
     descricao: "Microserviço de gerenciamento de resultados de loteria"
   
-  # Configuração JWT adicional
+  # Configuração JWT adicional - Segredos do Azure Key Vault
   jwt:
     # Chaves para validação (não geração)
-    chave-assinatura: ${JWT_SIGNING_KEY:}
-    chave-verificacao: ${JWT_VERIFICATION_KEY:}
-    id-chave: ${JWT_KEY_ID:}
-    segredo: ${JWT_SECRET:}
+    chave-assinatura: ${conexao-de-sorte-jwt-signing-key:}
+    chave-verificacao: ${conexao-de-sorte-jwt-verification-key:}
+    id-chave: ${conexao-de-sorte-jwt-key-id:}
+    segredo: ${conexao-de-sorte-jwt-secret:}
+    chave-publica: ${conexao-de-sorte-jwt-publickey:}
+    chave-privada: ${conexao-de-sorte-jwt-privatekey:}
     emissor: https://conexaodesorte.com.br
     audiencia: conexao-de-sorte-frontend-app
     algoritmo: RS256
@@ -105,9 +113,11 @@ aplicacao:
       requer-expiracao: true
       desvio-relogio: PT30S
 
-  # Configuração de Criptografia
+  # Configuração de Criptografia - Segredos do Azure Key Vault
   criptografia:
-    chave-mestra: ${ENCRYPTION_MASTER_KEY:}
+    chave-mestra: ${conexao-de-sorte-encryption-master-key:}
+    senha-mestra: ${conexao-de-sorte-encryption-master-password:}
+    chave-backup: ${conexao-de-sorte-encryption-backup-key:}
     algoritmo: AES-256-GCM
     rotacao-chaves: P30D # 30 dias
 
