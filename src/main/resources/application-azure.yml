@@ -24,7 +24,8 @@ spring:
 
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
-  # Segredos vindos do Azure Key Vault: ${AZURE_KEYVAULT_NAME}
+  # Segredos vindos do Azure Key Vault via R2dbcUrlNormalizer (programação defensiva)
+  # URLs JDBC são automaticamente convertidas para R2DBC
   r2dbc:
     url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
     username: ${conexao-de-sorte-database-username:}
