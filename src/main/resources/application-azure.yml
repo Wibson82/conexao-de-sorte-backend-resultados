@@ -14,7 +14,7 @@ spring:
       - "optional:configtree:/run/secrets/"
       - "optional:classpath:application-prod.yml"
 
-  # ===== SPRING CLOUD AZURE (DESABILITADO POR PADRÃO) =====
+  # ===== SPRING CLOUD AZURE (CONFIGURAÇÃO OIDC PURA) =====
   cloud:
     # Desabilitar verificação de compatibilidade Spring Boot/Cloud
     compatibility-verifier:
@@ -24,8 +24,9 @@ spring:
         tenant-id: ${AZURE_TENANT_ID:}
       credential:
         client-id: ${AZURE_CLIENT_ID:}
-        managed-identity-enabled: true
-        # OIDC Configuration - 100% keyless authentication
+        # ✅ DESABILITAR Managed Identity para evitar erro 169.254.169.254
+        managed-identity-enabled: false
+        # ✅ OIDC Configuration - 100% keyless authentication
         federated-token-credential-enabled: true
 
       # Azure Key Vault Secrets - HABILITADO para buscar segredos
@@ -34,11 +35,11 @@ spring:
           enabled: true
           property-sources:
             - endpoint: ${AZURE_KEYVAULT_ENDPOINT}
-              name: ${AZURE_KEYVAULT_ENDPOINT:}
+              name: ${AZURE_KEYVAULT_NAME:kv-conexao-de-sorte}
 
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
-  # Segredos vindos do Azure Key Vault: conexao-de-sorte-results-microservice
+  # Segredos vindos do Azure Key Vault: ${AZURE_KEYVAULT_NAME}
   r2dbc:
     url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
     username: ${conexao-de-sorte-database-username:}

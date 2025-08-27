@@ -51,7 +51,7 @@ flyway:
 
 ### 🔐 **3. Azure Key Vault Endpoint Hardcoded**
 **Problema CRÍTICO:** Endpoint do Azure Key Vault estava hardcoded no código
-**Sintoma:** `Failed to configure KeyVault property source 'conexao-de-sorte-results-microservice'`
+**Sintoma:** `Failed to configure KeyVault property source 'kv-conexao-de-sorte'`
 
 **Solução Antes:**
 ```yaml
@@ -62,7 +62,7 @@ spring:
         secret:
           property-sources:
             - endpoint: https://kv-conexao-de-sorte.vault.azure.net/  # ❌ HARDCODED
-              name: conexao-de-sorte-results-microservice
+              name: kv-conexao-de-sorte
 ```
 
 **Solução Depois:**
@@ -74,7 +74,7 @@ spring:
         secret:
           property-sources:
             - endpoint: ${AZURE_KEYVAULT_ENDPOINT:}  # ✅ VARIÁVEL DE AMBIENTE
-              name: ${AZURE_KEYVAULT_NAME:conexao-de-sorte-results-microservice}
+              name: ${AZURE_KEYVAULT_NAME:kv-conexao-de-sorte}
 ```
 
 **Lições CRÍTICAS:**

@@ -171,6 +171,41 @@ FROM eclipse-temurin:24-jre-alpine
 - **Profiles** - dev, test, prod
 - **Feature Flags** - Controle de funcionalidades
 
+### 🔐 Azure Key Vault - DIRETRIZES OBRIGATÓRIAS
+
+**❌ NUNCA FAZER:**
+```yaml
+# ❌ HARDCODED - PROIBIDO
+spring:
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          property-sources:
+            - endpoint: https://kv-conexao-de-sorte.vault.azure.net/
+              name: kv-conexao-de-sorte
+```
+
+**✅ SEMPRE FAZER:**
+```yaml
+# ✅ VARIÁVEIS DE AMBIENTE - OBRIGATÓRIO
+spring:
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          property-sources:
+            - endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
+              name: ${AZURE_KEYVAULT_NAME:kv-conexao-de-sorte}
+```
+
+**REGRAS CRÍTICAS:**
+- **SEMPRE** use `${AZURE_KEYVAULT_ENDPOINT:}` para endpoints
+- **SEMPRE** use `${AZURE_KEYVAULT_NAME:}` para nomes do Key Vault
+- **NUNCA** hardcode URLs do Azure Key Vault
+- **SEMPRE** permita diferentes Key Vaults por ambiente
+- **SEMPRE** documente variáveis de ambiente necessárias
+
 ### Monitoramento
 ```yaml
 Health Checks: /actuator/health

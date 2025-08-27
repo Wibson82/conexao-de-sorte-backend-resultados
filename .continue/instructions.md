@@ -10,6 +10,7 @@ Estas diretrizes devem ser seguidas **SEMPRE** ao gerar código para este projet
 - **Português obrigatório** - Toda comunicação, documentação e comentários em português
 - **Código reativo** - Sempre usar `Mono`/`Flux` e programação não-bloqueante
 - **Constantes descritivas** - NUNCA usar valores hardcoded, sempre criar constantes
+- **Azure Key Vault flexível** - SEMPRE usar variáveis de ambiente para endpoints e nomes do Key Vault
 - **Código válido para produção** - Todo código deve estar pronto para deploy
 - **Segurança em primeiro lugar** - Implementar todas as medidas de proteção
 - **Programação defensiva** - Validar entradas, tratar erros, logs detalhados
@@ -21,6 +22,7 @@ Estas diretrizes devem ser seguidas **SEMPRE** ao gerar código para este projet
 - Comunicação em inglês (exceto nomes técnicos)
 - Código bloqueante ou síncrono
 - Valores mágicos ou hardcoded no código
+- Endpoints do Azure Key Vault hardcoded
 - Downgrade de versões de dependências
 - Código sem tratamento de erro
 - Configurações hardcoded
