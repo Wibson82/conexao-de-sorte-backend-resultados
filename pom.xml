@@ -106,12 +106,12 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-security-keyvault-secrets</artifactId>
-            <version>4.7.4</version>
+            <version>4.10.2</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
-            <version>1.10.4</version>
+            <version>1.17.0</version>
         </dependency>
 
         <!-- Resiliência -->
