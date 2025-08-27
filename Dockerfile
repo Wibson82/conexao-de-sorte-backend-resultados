@@ -103,9 +103,10 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.url="https://conexaodesorte.com"
 LABEL org.opencontainers.image.source="https://github.com/conexaodesorte/resultados"
 
-# Comando de inicialização com dumb-init para signal handling
-ENTRYPOINT ["dumb-init", "--", "java"]
-CMD ["-jar", "app.jar"]
+# Script de entrada com pré-checagem de conexão ao banco
+COPY --chown=appuser:appgroup docker/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 
 # === ESTÁGIO 3: DEBUG (Opcional) ===

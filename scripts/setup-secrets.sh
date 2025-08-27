@@ -116,16 +116,36 @@ main() {
         DB_NAME="conexao_sorte_resultados"
     fi
 
-    # If the R2DBC URL has no database path, append the project-specific DB name
-    # URL examples:
-    #   r2dbc:mysql://host:3306             -> r2dbc:mysql://host:3306/conexao_sorte_resultados
-    #   r2dbc:mysql://host:3306/foobar      -> keep as-is
+    # Optional host override via secret or env to support docker host connectivity
+    DB_HOST_OVERRIDE_SECRET=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-host-override" --query value -o tsv 2>/dev/null || echo "")
+    DB_HOST_OVERRIDE="${DB_HOST_OVERRIDE:-}"
+    [[ -z "$DB_HOST_OVERRIDE" || "$DB_HOST_OVERRIDE" == "null" ]] && DB_HOST_OVERRIDE="$DB_HOST_OVERRIDE_SECRET"
+
+    # Normalize URL: inject DB name if missing; override host when requested or when localhost is used
     if [[ -n "$DB_R2DBC_URL" && "$DB_R2DBC_URL" != "null" ]]; then
-        # Extract path after protocol and host:port
-        # If no "/" after host:port, append "/$DB_NAME"
+        # Ensure a db path exists
         if [[ "$DB_R2DBC_URL" =~ ^r2dbc:mysql://[^/]+$ ]]; then
             DB_R2DBC_URL="$DB_R2DBC_URL/$DB_NAME"
         fi
+
+        # Extract components r2dbc:mysql://host[:port]/rest
+        proto_prefix="r2dbc:mysql://"
+        remainder="${DB_R2DBC_URL#${proto_prefix}}"
+        hostport="${remainder%%/*}"
+        restpath="${remainder#*/}"
+        # Split host and port
+        host="${hostport%%:*}"
+        port="${hostport#*:}"
+        [[ "$port" == "$host" ]] && port="3306"
+
+        # Apply override rules
+        if [[ -n "$DB_HOST_OVERRIDE" && "$DB_HOST_OVERRIDE" != "null" ]]; then
+            hostport="$DB_HOST_OVERRIDE"
+        elif [[ "$host" == "localhost" || "$host" == "127.0.0.1" ]]; then
+            hostport="host.docker.internal:${port}"
+        fi
+
+        DB_R2DBC_URL="${proto_prefix}${hostport}/${restpath}"
     fi
 
     # Expor secrets para Spring via configtree
