@@ -6,6 +6,9 @@ spring:
     default: prod
     # Profiles são sobrescritos via SPRING_PROFILES_ACTIVE no deployment
   
+  main:
+    allow-bean-definition-overriding: true
+  
   # Configtree secret management
   config:
     import:
@@ -310,7 +313,7 @@ logging:
     root: WARN
     
   file:
-    name: /var/log/resultados/application.log
+    name: ${LOG_FILE:/app/logs/application.log}
     
 features:
   resultados-microservice: true

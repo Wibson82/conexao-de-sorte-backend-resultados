@@ -267,6 +267,10 @@ jobs:
           docker stop resultados-microservice || true
           docker rm resultados-microservice || true
 
+          # Create logs directory
+          echo "📁 Creating logs directory..."
+          mkdir -p /var/log/resultados
+          
           # Run new container
           echo "▶️ Starting new container..."
           docker run -d \
@@ -277,6 +281,7 @@ jobs:
             --health-cmd="curl -f http://localhost:8082/actuator/health || exit 1" \
             --health-interval=30s --health-timeout=10s --health-retries=3 --health-start-period=60s \
             -v "${SECRETS_DIR}":/run/secrets:ro \
+            -v /var/log/resultados:/app/logs \
             -e JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx1024m -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Dfile.encoding=UTF-8" \
             -e SPRING_PROFILES_ACTIVE=prod,azure \
             -e ENVIRONMENT=production \
