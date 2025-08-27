@@ -354,10 +354,10 @@ jobs:
             -e conexao_de_sorte_database_username="${DB_USERNAME}" \
             -e conexao_de_sorte_database_password="${DB_PASSWORD}" \
             -e conexao_de_sorte_database_jdbc_url="${DB_JDBC_URL}" \
-            -e conexao_de_sorte_redis_host="${REDIS_HOST}" \
-            -e conexao_de_sorte_redis_port="${REDIS_PORT}" \
-            -e conexao_de_sorte_redis_password="${REDIS_PASSWORD}" \
-            -e conexao_de_sorte_redis_database="${REDIS_DATABASE}" \
+            -e SPRING_DATA_REDIS_HOST="${REDIS_HOST}" \
+            -e SPRING_DATA_REDIS_PORT="${REDIS_PORT}" \
+            -e SPRING_DATA_REDIS_PASSWORD="${REDIS_PASSWORD}" \
+            -e SPRING_DATA_REDIS_DATABASE="${REDIS_DATABASE}" \
             -e conexao_de_sorte_jwt_secret="${JWT_SECRET}" \
             -e conexao_de_sorte_jwt_key_id="${JWT_KEY_ID}" \
             -e conexao_de_sorte_jwt_signing_key="${JWT_SIGNING_KEY}" \
