@@ -35,12 +35,12 @@ spring:
           property-sources:
             - endpoint: ${AZURE_KEYVAULT_ENDPOINT}
               name: conexao-de-sorte-results-microservice
-              refresh-period: PT30S
+
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
   # Segredos vindos do Azure Key Vault: conexao-de-sorte-results-microservice
   r2dbc:
-    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=false&allowPublicKeyRetrieval=true}
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
     username: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     pool:
@@ -55,7 +55,7 @@ spring:
     enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
-    validate-on-migrate: false
+    validate-on-migrate: true
 
   # ===== REDIS CONFIGURATION =====
   data:
@@ -73,10 +73,7 @@ spring:
           min-idle: 2
           max-wait: 3000ms
 
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
 
   # ===== SECURITY JWT CONFIGURATION =====
   security:
@@ -155,8 +152,8 @@ management:
         allowed-methods: GET
   endpoint:
     health:
-      show-details: when_authorized
-      show-components: when_authorized
+      show-details: when-authorized
+      show-components: when-authorized
     env:
       enabled: false
     configprops:

@@ -11,7 +11,7 @@ set -euo pipefail
 # ===== CONFIGURAÇÕES =====
 SECRETS_DIR="/run/secrets"
 SERVICE_USER="appuser"
-VAULT_NAME="kv-conexao-de-sorte"  # Placeholder - será configurado via env
+VAULT_NAME="${AZURE_KEYVAULT_NAME:-kv-conexao-de-sorte}"
 LOG_FILE="/var/log/setup-secrets.log"
 
 # ===== FUNÇÕES =====

@@ -34,7 +34,7 @@ services:
       - AZURE_KEYVAULT_ENDPOINT=${AZURE_KEYVAULT_ENDPOINT}
       
       # Database (fallbacks para desenvolvimento local)
-      - conexao_de_sorte_database_url=${conexao_de_sorte_database_url:-r2dbc:mysql://resultados-mysql:3306/conexao_sorte_resultados?useSSL=false&allowPublicKeyRetrieval=true}
+      - conexao_de_sorte_database_url=${conexao_de_sorte_database_url:-r2dbc:mysql://resultados-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
       - conexao_de_sorte_database_username=${conexao_de_sorte_database_username:-resultados_user}
       - conexao_de_sorte_database_password=${conexao_de_sorte_database_password:-}
       

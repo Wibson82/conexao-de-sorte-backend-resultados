@@ -268,7 +268,7 @@
                 <version>3.2.5</version>
                 <configuration>
                     <systemPropertyVariables>
-                        <spring.profiles.active>test</spring.profiles.active>
+                        <spring.profiles.active>azure</spring.profiles.active>
                     </systemPropertyVariables>
                     <argLine>
                         -Xmx1g

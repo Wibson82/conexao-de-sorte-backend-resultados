@@ -42,9 +42,9 @@ jobs:
           chmod +x ./mvnw
           ./mvnw --version
       - name: Run unit tests
-        run: ./mvnw clean test -Dspring.profiles.active=test
+        run: ./mvnw clean test -Dspring.profiles.active=azure
       - name: Build application
-        run: ./mvnw clean package -DskipTests -Dspring.profiles.active=production
+        run: ./mvnw clean package -DskipTests -Dspring.profiles.active=azure
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

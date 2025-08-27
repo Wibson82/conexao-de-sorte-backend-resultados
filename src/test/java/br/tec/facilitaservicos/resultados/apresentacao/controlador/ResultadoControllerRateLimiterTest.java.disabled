@@ -22,7 +22,10 @@ import static org.mockito.Mockito.when;
 @WebFluxTest(controllers = ResultadoController.class)
 @ImportAutoConfiguration(RateLimiterAutoConfiguration.class)
 @Import(WebFluxTestConfig.class)
-@TestPropertySource(locations = "classpath:application-webflux-test.yml")
+@TestPropertySource(properties = {
+        "spring.profiles.active=azure",
+        "spring.cloud.azure.keyvault.secret.enabled=false"
+})
 class ResultadoControllerRateLimiterTest {
 
     @Autowired
