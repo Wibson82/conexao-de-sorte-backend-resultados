@@ -33,7 +33,7 @@ spring:
         secret:
           enabled: true
           property-sources:
-            - endpoint: ${AZURE_KEYVAULT_ENDPOINT:https://conexao-de-sorte-results-microservice.vault.azure.net/}
+            - endpoint: ${AZURE_KEYVAULT_ENDPOINT}
               name: conexao-de-sorte-results-microservice
               refresh-period: PT30S
 

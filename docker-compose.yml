@@ -31,7 +31,7 @@ services:
       # Azure OIDC Configuration
       - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
       - AZURE_TENANT_ID=${AZURE_TENANT_ID}
-      - AZURE_KEYVAULT_ENDPOINT=https://conexao-de-sorte-results-microservice.vault.azure.net/
+      - AZURE_KEYVAULT_ENDPOINT=${AZURE_KEYVAULT_ENDPOINT}
       
       # Database (fallbacks para desenvolvimento local)
       - conexao_de_sorte_database_url=${conexao_de_sorte_database_url:-r2dbc:mysql://resultados-mysql:3306/conexao_sorte_resultados?useSSL=false&allowPublicKeyRetrieval=true}

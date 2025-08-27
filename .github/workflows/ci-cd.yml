@@ -338,7 +338,7 @@ jobs:
             -e TZ=${{ env.TZ }} \
             -e AZURE_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}" \
             -e AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
-            -e AZURE_KEYVAULT_ENDPOINT="https://conexao-de-sorte-results-microservice.vault.azure.net/" \
+            -e AZURE_KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT}}" \
             -e conexao_de_sorte_database_url="${DB_URL}" \
             -e conexao_de_sorte_database_username="${DB_USERNAME}" \
             -e conexao_de_sorte_database_password="${DB_PASSWORD}" \
