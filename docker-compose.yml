@@ -67,7 +67,7 @@ services:
       retries: 5
       start_period: 60s
     networks:
-      - resultados-network
+      - conexao-network
     volumes:
       - ./logs:/app/logs
 
@@ -75,35 +75,35 @@ services:
   # 🗄️ MYSQL DATABASE
   # ========================================
   resultados-mysql:
-    image: mysql:8.0
-    container_name: resultados-mysql
-    restart: unless-stopped
-    ports:
-      - "3307:3306"  # Porta diferente para evitar conflito
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=conexao_sorte_resultados
-      - MYSQL_USER=resultados_user
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
-      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --default-authentication-plugin=mysql_native_password
-      --innodb-buffer-pool-size=1G
-      --innodb-log-file-size=256M
-      --max-connections=200
-    volumes:
-      - resultados-mysql-data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./src/main/resources/db/migration:/docker-entrypoint-initdb.d/migrations:ro
-    networks:
-      - resultados-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+    # image: mysql:8.4
+    # container_name: resultados-mysql
+    # restart: unless-stopped
+    # ports:
+    #   - "3307:3306"  # Porta diferente para evitar conflito
+    # environment:
+    #   - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    #   - MYSQL_DATABASE=conexao_sorte_resultados
+    #   - MYSQL_USER=resultados_user
+    #   - MYSQL_PASSWORD=${DB_PASSWORD}
+    #   - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+    #   - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    # command: >
+    #   --character-set-server=utf8mb4
+    #   --collation-server=utf8mb4_unicode_ci
+    #   --default-authentication-plugin=mysql_native_password
+    #   --innodb-buffer-pool-size=1G
+    #   --innodb-log-file-size=256M
+    #   --max-connections=200
+    # volumes:
+    #   - resultados-mysql-data:/var/lib/mysql
+    #   - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    #   - ./src/main/resources/db/migration:/docker-entrypoint-initdb.d/migrations:ro
+    # networks:
+    #   - conexao-network
+    # healthcheck:
+    #   test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    #   timeout: 20s
+    #   retries: 10
 
   # ========================================
   # 🚀 REDIS CACHE
@@ -126,7 +126,7 @@ services:
     volumes:
       - resultados-redis-data:/data
     networks:
-      - resultados-network
+      - conexao-network
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       timeout: 20s
@@ -152,7 +152,7 @@ services:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     networks:
-      - resultados-network
+      - conexao-network
     depends_on:
       - resultados-service
 
@@ -174,7 +174,7 @@ services:
       - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
-      - resultados-network
+      - conexao-network
     depends_on:
       - prometheus
 
@@ -195,7 +195,7 @@ volumes:
 # 🌐 REDE ISOLADA
 # ========================================
 networks:
-  resultados-network:
+  conexao-network:
     driver: bridge
     ipam:
       config:
