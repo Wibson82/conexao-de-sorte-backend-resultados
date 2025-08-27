@@ -28,12 +28,6 @@ spring:
       max-size: 50
       max-idle-time: 30m
       max-acquire-time: 60s
-    pool:
-      enabled: true
-      initial-size: 10
-      max-size: 50
-      max-idle-time: 30m
-      max-acquire-time: 60s
       
   # Flyway para migrations (usa JDBC)
   # Em produção, valores vêm do configtree (spring.flyway.*) se necessário
