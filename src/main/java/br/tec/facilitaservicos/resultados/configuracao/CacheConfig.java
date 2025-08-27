@@ -55,6 +55,8 @@ public class CacheConfig {
             RedisSerializationContext.<String, Object>newSerializationContext()
                 .key(new StringRedisSerializer())
                 .value(new GenericJackson2JsonRedisSerializer())
+                .hashKey(new StringRedisSerializer())
+                .hashValue(new GenericJackson2JsonRedisSerializer())
                 .build();
 
         return new ReactiveRedisTemplate<>(connectionFactory, serializationContext);
