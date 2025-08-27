@@ -210,18 +210,36 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Resolver Key Vault + carregar segredos (OIDC)
+        env:
+          # GitHub secrets fallback
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -euo pipefail
-          echo "🔑 Carregando segredos do Azure Key Vault: conexao-de-sorte-results-microservice"
+          echo "Loading secrets from Azure Key Vault: conexao-de-sorte-results-microservice" >&2
           VAULT="conexao-de-sorte-results-microservice"
           echo "VAULT=$VAULT" >> "$GITHUB_ENV"
 
           get() { 
-            echo "🔍 Buscando segredo: $1"
-            az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv 2>/dev/null || {
-              echo "⚠️ Segredo $1 não encontrado, usando fallback"
-              echo ""
-            }
+            echo "Fetching secret: $1" >&2
+            SECRET_VALUE=$(az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv 2>/dev/null || echo "")
+            if [ -z "$SECRET_VALUE" ]; then
+              echo "Warning: Secret $1 not found in Azure Key Vault, trying GitHub secret" >&2
+              # Fallback para GitHub secrets quando Azure Key Vault não tem o secret
+              case $1 in
+                conexao-de-sorte-database-url) echo "${DATABASE_URL:-}" ;;
+                conexao-de-sorte-database-username) echo "${DATABASE_USERNAME:-}" ;;
+                conexao-de-sorte-database-password) echo "${DATABASE_PASSWORD:-}" ;;
+                conexao-de-sorte-redis-password) echo "${REDIS_PASSWORD:-}" ;;
+                conexao-de-sorte-jwt-secret) echo "${JWT_SECRET:-}" ;;
+                *) echo "" ;;
+              esac
+            else
+              echo "$SECRET_VALUE"
+            fi
           }
 
           # Database secrets
@@ -268,7 +286,7 @@ jobs:
           printf '%s' "$(get conexao-de-sorte-encryption-backup-key)" > "$SECRETS_DIR/encryption_backup_key"
           chmod 600 "$SECRETS_DIR"/*
           echo "SECRETS_DIR=$SECRETS_DIR" >> $GITHUB_ENV
-          echo "✅ Segredos carregados com sucesso do Azure Key Vault"
+          echo "Success: Azure Key Vault secrets loaded successfully" >&2
 
       - name: Login GHCR
         uses: docker/login-action@v3
