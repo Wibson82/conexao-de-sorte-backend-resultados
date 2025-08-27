@@ -3,7 +3,7 @@ spring:
     name: resultados
     
   profiles:
-    active: dev
+    default: dev
   
   # Configtree secret management
   config:
@@ -31,7 +31,7 @@ spring:
     password: ${DB_PASSWORD:}  # Removed default password for security
     locations: classpath:db/migration
     baseline-on-migrate: true
-    validate-on-migrate: false
+    validate-migration: false
     
   # Cache reativo (Redis)
   data:
@@ -43,7 +43,7 @@ spring:
       lettuce:
         pool:
           enabled: true
-          max-active: 20
+          max-total: 20
           max-idle: 8
           min-idle: 2
           
@@ -52,7 +52,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${JWT_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
+          jwk-set-uri: ${JWT_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${JWT_ISSUER:https://auth.conexaodesorte.com}
 
 server:
@@ -112,7 +112,7 @@ management:
             percentiles: 0.5,0.95,0.99
             
   tracing:
-    enabled: true
+    enabled: ${TRACING_ENABLED:true}
     sampling:
       probability: ${TRACING_PROBABILITY:0.1}
 
@@ -259,7 +259,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:8082/.well-known/jwks.json
+          jwk-set-uri: http://localhost:8081/.well-known/jwks.json
           
 logging:
   level:
