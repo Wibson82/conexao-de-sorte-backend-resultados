@@ -14,7 +14,7 @@ spring:
       - "optional:configtree:/run/secrets/"
       - "optional:classpath:application-prod.yml"
 
-  # ===== SPRING CLOUD AZURE =====
+  # ===== SPRING CLOUD AZURE (DESABILITADO POR PADRÃO) =====
   cloud:
     azure:
       profile:
@@ -23,15 +23,10 @@ spring:
         client-id: ${AZURE_CLIENT_ID:}
         managed-identity-enabled: false
 
-      # Azure Key Vault Secrets
+      # Azure Key Vault Secrets - COMPLETAMENTE DESABILITADO sem configuração adequada
       keyvault:
         secret:
-          enabled: ${AZURE_KEYVAULT_ENABLED:false}
-          endpoint: ${AZURE_KEYVAULT_ENDPOINT:https://dummy.vault.azure.net/}
-          property-sources:
-            - endpoint: ${AZURE_KEYVAULT_ENDPOINT:https://dummy.vault.azure.net/}
-              name: resultados-microservice-secrets
-              case-sensitive: false
+          enabled: false
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
   # Primary: Azure Key Vault secrets
