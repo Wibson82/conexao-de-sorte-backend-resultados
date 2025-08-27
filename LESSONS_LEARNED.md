@@ -10,11 +10,11 @@
 - **Tecnologias:** Spring Boot 3.5.5, WebFlux, R2DBC, Java 24
 - **Porta:** 8082
 - **Banco de Dados:** `conexao_sorte_resultados` (novo, dedicado)
-- **Última Atualização:** 2025-08-27
+- **Última Atualização:** 2025-01-17
 
 ---
 
-## ✅ **CORREÇÕES APLICADAS (2025-08-27)**
+## ✅ **CORREÇÕES APLICADAS (2025-08-27 + 2025-01-17)**
 
 ### 🗄️ **1. Configuração de Banco INCORRETA**
 **Problema CRÍTICO:** Variáveis de ambiente e nome do banco incorretos
@@ -84,6 +84,62 @@ spring:
 - Valores hardcoded impedem deployment em diferentes ambientes (dev/staging/prod)
 - **INSTRUÇÃO PARA AGENTES DE IA:** Sempre use variáveis de ambiente para configurações do Azure
 **Causa:** Spring Cloud Azure 5.18.0 + Spring Boot 3.5.5
+
+### 🔐 **4. Configuração OIDC e Service Principal (2025-01-17)**
+**Problema CRÍTICO:** Service Principal não configurado corretamente para GitHub Actions
+**Sintoma:** Falhas de autenticação no Azure Key Vault durante CI/CD
+
+**Solução Implementada:**
+- **Service Principal:** `sp-conexao-de-sorte-github` (Object ID: `b53e8ee7-5171-4050-b1ee-f11296db1a39`)
+- **App ID (CLIENT_ID):** `0d27da5e-e9dc-41e5-8e85-ccd03fc6dad7`
+- **Role RBAC:** `Key Vault Secrets User` no Key Vault `kv-conexao-de-sorte`
+- **GitHub Secrets:** Configurados para OIDC authentication
+
+**GitHub Secrets Criados:**
+```bash
+AZURE_CLIENT_ID=0d27da5e-e9dc-41e5-8e85-ccd03fc6dad7
+AZURE_TENANT_ID=<tenant-id>
+AZURE_SUBSCRIPTION_ID=<subscription-id>
+AZURE_KEYVAULT_ENDPOINT=https://kv-conexao-de-sorte.vault.azure.net/
+AZURE_KEYVAULT_NAME=kv-conexao-de-sorte
+```
+
+**Lições CRÍTICAS:**
+- **Service Principal** é obrigatório para GitHub Actions acessar Azure Key Vault
+- **RBAC Role** `Key Vault Secrets User` é suficiente para leitura de secrets
+- **OIDC** é mais seguro que Client Secret para CI/CD
+- **GitHub Secrets** devem ser configurados no repositório para funcionar
+
+### 🗝️ **5. Secrets Ausentes no Azure Key Vault (2025-01-17)**
+**Problema CRÍTICO:** 11 secrets essenciais não existiam no Key Vault
+**Sintoma:** Aplicação falhava ao carregar configurações do Azure Key Vault
+
+**Secrets Criados:**
+1. `conexao-de-sorte-redis-password` - Senha do Redis
+2. `conexao-de-sorte-redis-database` - Database do Redis (valor: 2)
+3. `conexao-de-sorte-database-jdbc-url` - URL JDBC do banco
+4. `conexao-de-sorte-jwt-issuer` - Issuer JWT (valor: conexaodesorte.com.br)
+5. `conexao-de-sorte-jwt-jwks-uri` - JWKS URI (valor: https://conexaodesorte.com.br/.well-known/jwks.json)
+6. `conexao-de-sorte-encryption-backup-key` - Chave de backup criptografia
+7. `conexao-de-sorte-ssl-enabled` - SSL habilitado (valor: false)
+8. `conexao-de-sorte-ssl-keystore-path` - Caminho keystore SSL
+9. `conexao-de-sorte-ssl-keystore-password` - Senha keystore SSL
+10. `conexao-de-sorte-cors-allowed-origins` - Origins CORS (valor: https://conexaodesorte.com.br)
+11. `conexao-de-sorte-cors-allow-credentials` - Credenciais CORS (valor: true)
+
+**Comando CLI Usado:**
+```bash
+az keyvault secret set --vault-name kv-conexao-de-sorte --name conexao-de-sorte-redis-password --value redis-default-password && \
+az keyvault secret set --vault-name kv-conexao-de-sorte --name conexao-de-sorte-redis-database --value 2 && \
+# ... (outros secrets)
+```
+
+**Lições CRÍTICAS:**
+- **Análise de logs** é essencial para identificar secrets ausentes
+- **Azure CLI** é eficiente para criar múltiplos secrets
+- **Valores padrão** devem ser substituídos por valores de produção
+- **Domínio personalizado** (conexaodesorte.com.br) deve ser usado em JWT e CORS
+- **Total de 25 secrets** agora disponíveis no Key Vault
 
 ### 🔧 **3. Redis SerializationContext**
 **Problema:** ClassNotFoundException + SerializationContext incompleto
@@ -201,17 +257,31 @@ spring:
 3. **Variáveis ambiente:** Sempre `SPRING_DATASOURCE_*`
 4. **Flyway:** JDBC URL fixa (não usar variável R2DBC)
 
+**🔐 AZURE KEY VAULT & OIDC - CONFIGURAÇÃO CRÍTICA:**
+1. **Service Principal:** `sp-conexao-de-sorte-github` (Object ID: `b53e8ee7-5171-4050-b1ee-f11296db1a39`)
+2. **RBAC Role:** `Key Vault Secrets User` é suficiente para leitura
+3. **GitHub Secrets:** 5 secrets obrigatórios para OIDC (CLIENT_ID, TENANT_ID, SUBSCRIPTION_ID, KEYVAULT_ENDPOINT, KEYVAULT_NAME)
+4. **Total Secrets:** 25 secrets no Key Vault (14 originais + 11 criados em 2025-01-17)
+5. **Domínio:** `conexaodesorte.com.br` usado em JWT e CORS
+
 **Regras de Ouro:**
 - NUNCA usar `conexao_de_sorte` (nome genérico)
 - SEMPRE testar conexão antes de deploy
 - Flyway = JDBC, R2DBC = reativo
 - Redis database 2 = dedicado para resultados
+- NUNCA hardcode Azure Key Vault endpoints
+- SEMPRE usar OIDC para GitHub Actions (mais seguro que Client Secret)
+- SEMPRE verificar se todos os 25 secrets existem no Key Vault
 
 **Deploy Checklist:**
 1. Banco `conexao_sorte_resultados` existe?
 2. Variáveis `SPRING_DATASOURCE_*` configuradas?
 3. Redis database 2 configurado?
 4. Spring Cloud compatibility disabled?
+5. Service Principal `sp-conexao-de-sorte-github` tem role `Key Vault Secrets User`?
+6. GitHub Secrets configurados (5 secrets OIDC)?
+7. Todos os 25 secrets existem no Azure Key Vault?
+8. Domínio `conexaodesorte.com.br` configurado em JWT e CORS?
 
 ---
 

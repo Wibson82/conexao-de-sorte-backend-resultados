@@ -270,6 +270,9 @@ jobs:
           # CORS configuration
           echo "CORS_ALLOWED_ORIGINS=$(get conexao-de-sorte-cors-allowed-origins)" >> $GITHUB_ENV
           echo "CORS_ALLOW_CREDENTIALS=$(get conexao-de-sorte-cors-allow-credentials)" >> $GITHUB_ENV
+          
+          # Azure Client Secret (para solução híbrida)
+          echo "AZURE_CLIENT_SECRET_VALUE=$(get conexao-de-sorte-azure-client-secret)" >> $GITHUB_ENV
 
           # Create secure secrets directory
           SECRETS_DIR=$(mktemp -d -p /tmp conexao_secrets_XXXX)
@@ -338,8 +341,9 @@ jobs:
             -e TZ=${{ env.TZ }} \
             -e AZURE_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}" \
             -e AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
+            -e AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET_VALUE}" \
             -e AZURE_KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT}}" \
-            -e AZURE_KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME}}" \
+            -e AZURE_KEYVAULT_ENABLED=true \
             -e conexao_de_sorte_database_url="${DB_URL}" \
             -e conexao_de_sorte_database_username="${DB_USERNAME}" \
             -e conexao_de_sorte_database_password="${DB_PASSWORD}" \

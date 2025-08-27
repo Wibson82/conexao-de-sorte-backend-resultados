@@ -1,9 +1,11 @@
 # =============================================================================
-# CONFIGURAÇÃO AZURE KEY VAULT - RESULTADOS MICROSERVICE
+# CONFIGURAÇÃO AZURE KEY VAULT - SOLUÇÃO HÍBRIDA OIDC - RESULTADOS MICROSERVICE
 # =============================================================================
-# ✅ Configuração específica para o microserviço de resultados
-# ✅ Usa Spring Cloud Azure para integração com Azure Key Vault
-# ✅ Compatível com deployment via Docker
+# ✅ Solução Híbrida OIDC implementada:
+# ✅ CI/CD: GitHub Actions usa OIDC puro para buscar secrets
+# ✅ Runtime: Container usa Client Credentials com secrets injetados  
+# ✅ Zero configuração no servidor Ubuntu (funciona em qualquer ambiente)
+# ✅ Secrets nunca persistem no servidor (máxima segurança)
 # =============================================================================
 
 spring:
@@ -14,28 +16,11 @@ spring:
       - "optional:configtree:/run/secrets/"
       - "optional:classpath:application-prod.yml"
 
-  # ===== SPRING CLOUD AZURE (CONFIGURAÇÃO OIDC PURA) =====
+  # ===== SPRING CLOUD AZURE DESABILITADO =====
+  # Usando configuração customizada em AzureKeyVaultConfig
   cloud:
-    # Desabilitar verificação de compatibilidade Spring Boot/Cloud
     compatibility-verifier:
       enabled: false
-    azure:
-      profile:
-        tenant-id: ${AZURE_TENANT_ID:}
-      credential:
-        client-id: ${AZURE_CLIENT_ID:}
-        # ✅ DESABILITAR Managed Identity para evitar erro 169.254.169.254
-        managed-identity-enabled: false
-        # ✅ OIDC Configuration - 100% keyless authentication
-        federated-token-credential-enabled: true
-
-      # Azure Key Vault Secrets - HABILITADO para buscar segredos
-      keyvault:
-        secret:
-          enabled: true
-          property-sources:
-            - endpoint: ${AZURE_KEYVAULT_ENDPOINT}
-              name: ${AZURE_KEYVAULT_NAME:kv-conexao-de-sorte}
 
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
@@ -181,14 +166,15 @@ management:
     enabled: true
     roles: ACTUATOR
 
-# ===== CONFIGURAÇÕES CUSTOMIZADAS AZURE =====
+# ===== CONFIGURAÇÃO AZURE KEY VAULT HÍBRIDA =====
 azure:
   keyvault:
     enabled: ${AZURE_KEYVAULT_ENABLED:true}
     endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
-    fallback:
-      enabled: true # Permite fallback para variáveis de ambiente
-      local-properties: true
+    client-id: ${AZURE_CLIENT_ID:}
+    client-secret: ${AZURE_CLIENT_SECRET:}  # Injetado pelo CI/CD via OIDC
+    tenant-id: ${AZURE_TENANT_ID:}
+    fallback-enabled: ${AZURE_KEYVAULT_FALLBACK:true}
 
 # ===== SERVER CONFIGURATION =====
 server:
