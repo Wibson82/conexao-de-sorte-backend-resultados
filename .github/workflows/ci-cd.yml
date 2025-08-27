@@ -237,8 +237,7 @@ jobs:
             echo "$SECRET_VALUE"
           }
 
-          # Database secrets
-          echo "DB_URL=$(get conexao-de-sorte-database-url)" >> $GITHUB_ENV
+          # Database secrets (apenas R2DBC para projetos reativos)
           echo "DB_R2DBC_URL=$(get conexao-de-sorte-database-r2dbc-url)" >> $GITHUB_ENV
           echo "DB_USERNAME=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
           echo "DB_PASSWORD=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
@@ -345,7 +344,6 @@ jobs:
             -e AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET_VALUE}" \
             -e AZURE_KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT}}" \
             -e AZURE_KEYVAULT_ENABLED=true \
-            -e conexao_de_sorte_database_url="${DB_URL}" \
             -e conexao_de_sorte_database_r2dbc_url="${DB_R2DBC_URL}" \
             -e conexao_de_sorte_database_username="${DB_USERNAME}" \
             -e conexao_de_sorte_database_password="${DB_PASSWORD}" \

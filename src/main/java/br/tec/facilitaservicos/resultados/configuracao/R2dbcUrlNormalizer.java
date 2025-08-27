@@ -53,7 +53,6 @@ public class R2dbcUrlNormalizer implements ApplicationListener<ApplicationEnviro
         // Propriedades que precisam ser verificadas e convertidas
         String[] r2dbcProperties = {
             "spring.r2dbc.url",
-            "conexao-de-sorte-database-url",
             "conexao-de-sorte-database-r2dbc-url"
         };
         
