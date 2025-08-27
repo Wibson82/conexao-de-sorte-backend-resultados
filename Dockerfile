@@ -89,9 +89,6 @@ EXPOSE 8082
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:8082/actuator/health || exit 1
 
-# Mudar para usuário não-root
-USER appuser:appgroup
-
 ARG VERSION=1.0.0
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
@@ -201,7 +198,11 @@ RUN printf '%s\n' '#!/bin/sh' \
     'log "🚀 Iniciando aplicação Java"' \
     'exec dumb-init -- java -jar /app/app.jar' \
     > /app/docker-entrypoint.sh && \
-    chmod +x /app/docker-entrypoint.sh
+    chmod +x /app/docker-entrypoint.sh && \
+    chown appuser:appgroup /app/docker-entrypoint.sh
+
+# Mudar para usuário não-root
+USER appuser:appgroup
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
