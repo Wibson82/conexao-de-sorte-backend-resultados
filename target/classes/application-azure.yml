@@ -29,12 +29,12 @@ spring:
           enabled: false
 
   # ===== DATABASE CONFIGURATION (R2DBC REATIVO) =====
-  # Primary: Azure Key Vault secrets
-  # Fallback: Environment variables from container
+  # Primary: Azure Key Vault secrets via environment variables
+  # Fallback: Container environment variables
   r2dbc:
-    url: ${DB_URL:r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=false}
-    username: ${DB_USER:resultados_user}
-    password: ${DB_PASSWORD:}
+    url: ${SPRING_DATASOURCE_URL:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:conexao_sorte}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     pool:
       enabled: true
       initial-size: 10
@@ -45,9 +45,9 @@ spring:
   # ===== FLYWAY CONFIGURATION (JDBC para migrations) =====
   flyway:
     enabled: true
-    url: ${DB_URL:jdbc:mysql://conexao-mysql:3306/conexao_de_sorte}
-    user: ${DB_USER:resultados_user}
-    password: ${DB_PASSWORD:}
+    url: jdbc:mysql://conexao-mysql:3306/conexao_sorte_resultados
+    user: ${SPRING_DATASOURCE_USERNAME:conexao_sorte}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
