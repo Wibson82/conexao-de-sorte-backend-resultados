@@ -30,9 +30,9 @@ spring:
       max-acquire-time: 60s
       
   # Flyway para migrations (usa JDBC)
-  # Em produção, valores vêm do configtree (spring.flyway.*) se necessário
+  # Temporariamente desabilitar Flyway para isolar problema de conexão
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-migration: false

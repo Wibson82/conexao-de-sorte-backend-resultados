@@ -17,7 +17,7 @@ spring:
       max-acquire-time: 60s
 
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
@@ -30,4 +30,3 @@ management:
 
 server:
   shutdown: graceful
-

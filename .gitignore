@@ -96,8 +96,7 @@ application-local.properties
 secrets/
 chaves/
 
-# Docker
-.dockerignore
+# Docker: mantenha o .dockerignore versionado
 
 # Temporary files
 tmp/
