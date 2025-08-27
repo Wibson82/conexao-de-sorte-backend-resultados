@@ -114,10 +114,13 @@ spring:
 ## 🔄 **HISTÓRICO DE MUDANÇAS**
 
 ### **2025-08-27**
-- ✅ Banco: Corrigido nome + variáveis ambiente
+- ✅ Banco: Corrigido nome + variáveis ambiente e defaults Docker (`conexao-mysql`)
 - ✅ Spring Cloud: Compatibilidade resolvida
-- ✅ Redis: SerializationContext completo + database=2
-- ⚠️ PENDENTE: Criar banco `conexao_sorte_resultados`
+- ✅ EntryPoint: pré-checagem de conectividade com fallbacks (conexao-mysql → host.docker.internal → gateway → localhost)
+- ✅ .dockerignore: adicionado para reduzir contexto e evitar vazamentos
+- ✅ Flyway: desativado temporariamente para isolar conectividade
+- ✅ Redis: auto-config desabilitada quando não configurado (evita UnknownHost "redis")
+- ⚠️ PENDENTE: Confirmar criação do banco `conexao_sorte_resultados` e reativar Flyway
 
 ---
 
@@ -125,19 +128,33 @@ spring:
 
 **Banco de Dados:**
 - [ ] Nome: `conexao_sorte_resultados` (nunca `conexao_de_sorte`)
-- [ ] Variáveis: `SPRING_DATASOURCE_*` (padrão Spring Boot)
+- [ ] Variáveis: `SPRING_DATASOURCE_*` OU `DB_*` (ambas aceitas; usar Key Vault + configtree)
 - [ ] R2DBC: URL com `r2dbc:mysql://`
 - [ ] Flyway: URL com `jdbc:mysql://` (fixo, não variável)
 
+**Conectividade em Docker:**
+- [ ] Usar hostname interno: `conexao-mysql` (mesma rede)
+- [ ] Evitar `localhost` no container (aponta para o próprio container)
+- [ ] Se necessário, usar `DB_HOST_OVERRIDE`/segredo para forçar host
+
 **Deployment:**
-- [ ] Container environment usa `SPRING_DATASOURCE_*`
+- [ ] Container com `/run/secrets` populado (Key Vault via OIDC)
 - [ ] Azure Key Vault mapeado corretamente
 - [ ] Banco `conexao_sorte_resultados` existe e acessível
 
 **Redis:**
-- [ ] Database 2 dedicado para resultados
-- [ ] SerializationContext completo (key, value, hashKey, hashValue)
-- [ ] Commons-pool2 dependency presente
+- [ ] Se não houver Redis, desabilitar auto-config e health
+- [ ] Quando houver, usar hostname interno (ex.: `conexao-redis`) e credenciais via Key Vault
+- [ ] Database 2 dedicado para resultados; commons-pool2 presente
+
+---
+
+## 🧭 Diretrizes rápidas para Redis (temporariamente desativado)
+
+- Em produção, provisionar Redis como serviço dedicado (não acoplado a um microserviço específico).
+- Nome interno na rede Docker: ex.: `conexao-redis`.
+- Segredos via Key Vault (`REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_DB`).
+- Reativar auto-config removendo exclusões em `spring.autoconfigure.exclude` e restabelecer health quando disponível.
 
 ---
 

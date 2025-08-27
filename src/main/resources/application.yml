@@ -100,11 +100,12 @@ management:
       probes:
         enabled: true
   
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
         step: 60s
+  metrics:
     distribution:
       percentiles:
         http.server.requests: 0.5,0.95,0.99

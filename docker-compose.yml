@@ -74,7 +74,7 @@ services:
   # ========================================
   # 🗄️ MYSQL DATABASE
   # ========================================
-  resultados-mysql:
+  # resultados-mysql:
     # image: mysql:8.4
     # container_name: resultados-mysql
     # restart: unless-stopped
