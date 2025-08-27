@@ -273,16 +273,14 @@ jobs:
             --name resultados-microservice \
             --network conexao-network \
             --restart unless-stopped \
-            -p 8080:8080 \
-            --health-cmd="curl -f http://localhost:8080/actuator/health || exit 1" \
+            -p 8082:8082 \
+            --health-cmd="curl -f http://localhost:8082/actuator/health || exit 1" \
             --health-interval=30s --health-timeout=10s --health-retries=3 --health-start-period=60s \
             -v "${SECRETS_DIR}":/run/secrets:ro \
-            -e JAVA_TOOL_OPTIONS="" \
-            -e JDK_JAVA_OPTIONS="" \
-            -e JAVA_OPTS="" \
+            -e JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx1024m -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Dfile.encoding=UTF-8" \
             -e SPRING_PROFILES_ACTIVE=prod,azure \
             -e ENVIRONMENT=production \
-            -e SERVER_PORT=8080 \
+            -e SERVER_PORT=8082 \
             -e SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/ \
             -e TZ=${{ env.TZ }} \
             -e SPRING_DATASOURCE_URL="${SPRING_DATASOURCE_URL}" \
@@ -298,32 +296,35 @@ jobs:
             --label "traefik.http.routers.resultados.rule=Host(\`resultados.conexaodesorte.com.br\`)" \
             --label "traefik.http.routers.resultados.entrypoints=websecure" \
             --label "traefik.http.routers.resultados.tls.certresolver=letsencrypt" \
-            --label "traefik.http.services.resultados.loadbalancer.server.port=8080" \
+            --label "traefik.http.services.resultados.loadbalancer.server.port=8082" \
             "$IMAGE"
 
           # Wait for container to be ready
           echo "⏳ Waiting for container to be ready..."
-          sleep 15
+          sleep 30
           
           # Health check via localhost (internal)
           echo "🔍 Performing health check..."
-          for i in $(seq 1 8); do
-            if curl -fsS http://localhost:8080/actuator/health >/dev/null 2>&1; then
+          for i in $(seq 1 10); do
+            echo "⏳ Health check attempt $i/10..."
+            if curl -fsS http://localhost:8082/actuator/health >/dev/null 2>&1; then
               echo "✅ Container is healthy!"
               echo "🎉 Deployment successful!"
               break
             fi
-            echo "⏳ Health check attempt $i/8 - waiting..."
-            sleep 15
-            if [ "$i" -eq 8 ]; then
-              echo "❌ Health check failed after 8 attempts"
-              echo "📋 Container logs (last 50 lines):"
-              docker logs resultados-microservice --tail 50 || true
+            
+            if [ "$i" -eq 10 ]; then
+              echo "❌ Health check failed after 10 attempts"
+              echo "📋 Container logs (last 100 lines):"
+              docker logs resultados-microservice --tail 100 || true
               echo "📊 Container status:"
               docker ps -a --filter name=resultados-microservice || true
+              echo "🔍 Container health status:"
+              docker inspect resultados-microservice --format='{{json .State.Health}}' || true
               rm -rf "${SECRETS_DIR}" || true
               exit 1
             fi
+            sleep 20
           done
 
           echo "🧹 Cleaning up secrets and old images..."
