@@ -9,6 +9,9 @@ spring:
       - optional:configtree:/run/secrets/
 
   r2dbc:
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados}}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
     pool:
       enabled: true
       initial-size: 10
@@ -21,6 +24,11 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
 
 management:
   endpoints:

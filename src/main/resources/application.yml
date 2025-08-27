@@ -20,8 +20,11 @@ spring:
       - optional:configtree:/mnt/secrets/
       - optional:file:./secrets.properties
 
-  # Em produção, valores vêm do configtree (spring.r2dbc.*); não definir aqui para evitar fallbacks inseguros
+  # R2DBC - define defaults seguros para Docker (rede interna) e permite override via env/configtree
   r2dbc:
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados}}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
     pool:
       enabled: true
       initial-size: 10
@@ -110,6 +113,14 @@ management:
       server:
         requests:
           enabled: true
+  health:
+    redis:
+      enabled: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
             
   tracing:
     enabled: ${TRACING_ENABLED:true}
