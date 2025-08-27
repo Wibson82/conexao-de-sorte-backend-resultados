@@ -106,12 +106,12 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-security-keyvault-secrets</artifactId>
-            <version>4.10.3</version>
+            <version>4.7.4</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
-            <version>1.16.2</version>
+            <version>1.10.4</version>
         </dependency>
 
         <!-- Resiliência -->
@@ -301,6 +301,10 @@
     </build>
 
     <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
         <repository>
             <id>spring-milestones</id>
             <url>https://repo.spring.io/milestone</url>
