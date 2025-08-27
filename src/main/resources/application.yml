@@ -237,10 +237,10 @@ spring:
       on-profile: dev
       
   r2dbc:
-    url: r2dbc:mysql://localhost:3306/conexao_sorte_resultados_dev
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados_dev?useSSL=false&allowPublicKeyRetrieval=true}
     
   flyway:
-    url: jdbc:mysql://localhost:3306/conexao_sorte_resultados_dev
+    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://conexao-mysql:3306/conexao_sorte_resultados_dev?useSSL=false&allowPublicKeyRetrieval=true}
     
 logging:
   level:
@@ -261,17 +261,17 @@ spring:
       on-profile: test
       
   r2dbc:
-    url: r2dbc:mysql://localhost:3306/conexao_sorte_resultados_test
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados_test?useSSL=false&allowPublicKeyRetrieval=true}
     
   flyway:
-    url: jdbc:mysql://localhost:3306/conexao_sorte_resultados_test
+    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://conexao-mysql:3306/conexao_sorte_resultados_test?useSSL=false&allowPublicKeyRetrieval=true}
     clean-disabled: false
     
   security:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:8081/.well-known/jwks.json
+          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:http://conexao-auth:8081/.well-known/jwks.json}
           
 logging:
   level:

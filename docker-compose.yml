@@ -123,7 +123,7 @@ services:
       - REDIS_PASSWORD=${conexao_de_sorte_redis_password:-}
     command: >
       redis-server
-      --requirepass ${conexao_de_sorte_redis_password:-changeme}
+      --requirepass ${conexao_de_sorte_redis_password:-secure-redis-password-from-keyvault}
       --maxmemory 512mb
       --maxmemory-policy allkeys-lru
       --tcp-keepalive 60
@@ -133,7 +133,7 @@ services:
     networks:
       - conexao-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${conexao_de_sorte_redis_password:-changeme}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${conexao_de_sorte_redis_password:-secure-redis-password-from-keyvault}", "ping"]
       timeout: 20s
       retries: 5
 

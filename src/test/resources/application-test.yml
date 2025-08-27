@@ -22,7 +22,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:8080/.well-known/jwks.json
+          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:http://conexao-auth:8080/.well-known/jwks.json}
 
 logging:
   level:
@@ -44,7 +44,7 @@ features:
 
 app:
   cors:
-    allowed-origins: http://localhost:3000
+    allowed-origins: ${conexao-de-sorte-cors-allowed-origins:http://localhost:3000}
   rate-limit:
     requests-per-minute: 1000
   cache:
