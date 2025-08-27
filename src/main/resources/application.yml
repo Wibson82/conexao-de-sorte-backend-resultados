@@ -3,7 +3,8 @@ spring:
     name: resultados
     
   profiles:
-    default: dev
+    default: prod
+    # Profiles são sobrescritos via SPRING_PROFILES_ACTIVE no deployment
   
   # Configtree secret management
   config:
