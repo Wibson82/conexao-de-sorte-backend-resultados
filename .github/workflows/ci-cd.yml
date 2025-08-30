@@ -209,7 +209,7 @@ jobs:
 
   deploy-production:
     needs: [build-image, sign-image]
-    runs-on: [self-hosted, linux, x64, production, resultados-service]
+    runs-on: [self-hosted, hostinger-runner]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
     name: 🌟 Deploy to Production (self-hosted)
     permissions:
