@@ -1,16 +1,17 @@
 package br.tec.facilitaservicos.resultados.configuracao;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * ============================================================================
@@ -45,9 +46,8 @@ public class R2dbcUrlNormalizer implements ApplicationListener<ApplicationEnviro
     private static final Pattern JDBC_POSTGRESQL_PATTERN = Pattern.compile("^jdbc:postgresql://");
     private static final Pattern JDBC_H2_PATTERN = Pattern.compile("^jdbc:h2://");
     private static final Pattern JDBC_MARIADB_PATTERN = Pattern.compile("^jdbc:mariadb://");
-    
     @Override
-    public void onApplicationEvent(ApplicationEnvironmentPreparedEvent event) {
+    public void onApplicationEvent(@NonNull ApplicationEnvironmentPreparedEvent event) {
         ConfigurableEnvironment environment = event.getEnvironment();
         
         // Propriedades que precisam ser verificadas e convertidas
@@ -70,8 +70,10 @@ public class R2dbcUrlNormalizer implements ApplicationListener<ApplicationEnviro
                     
                     logger.info("🛡️ R2DBC URL Normalizer - Conversão automática aplicada:");
                     logger.info("   Propriedade: {}", property);
-                    logger.info("   Original: {}", maskUrl(originalValue));
-                    logger.info("   Convertida: {}", maskUrl(convertedValue));
+                    if (logger.isInfoEnabled()) {
+                        logger.info("   Original: {}", maskUrl(originalValue));
+                        logger.info("   Convertida: {}", maskUrl(convertedValue));
+                    }
                 }
             }
         }
@@ -129,8 +131,10 @@ public class R2dbcUrlNormalizer implements ApplicationListener<ApplicationEnviro
         // Conversão genérica para outros drivers
         else if (converted.startsWith("jdbc:")) {
             converted = converted.replaceFirst("^jdbc:", "r2dbc:");
-            logger.warn("⚠️ Conversão genérica aplicada para: {}", maskUrl(jdbcUrl));
-            logger.warn("   Verifique se o driver R2DBC está disponível para este banco");
+            if (logger.isWarnEnabled()) {
+                logger.warn("⚠️ Conversão genérica aplicada para: {}", maskUrl(jdbcUrl));
+                logger.warn("   Verifique se o driver R2DBC está disponível para este banco");
+            }
         }
         
         return converted;

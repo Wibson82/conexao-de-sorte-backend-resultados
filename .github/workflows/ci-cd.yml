@@ -3,7 +3,6 @@ name: 🎯 Resultados Microservice - CI/CD Pipeline
 on:
   push:
     branches: [ main ]
-    paths: ['src/**', 'pom.xml', 'Dockerfile', '.github/workflows/**']
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -192,7 +191,7 @@ jobs:
 
   deploy-production:
     needs: [build-image, sign-image]
-    runs-on: [self-hosted, hostinger-runner]
+    runs-on: [self-hosted, linux, x64, production, resultados-service]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
     name: 🌟 Deploy to Production (self-hosted)
     permissions:
@@ -205,15 +204,15 @@ jobs:
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Load Azure Key Vault secrets
         run: |
           set -euo pipefail
           # Extract vault name from AZURE_KEYVAULT_ENDPOINT
-          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          VAULT_ENDPOINT="${{ vars.AZURE_KEYVAULT_ENDPOINT }}"
           if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
             VAULT="${BASH_REMATCH[1]}"
           else
@@ -277,8 +276,7 @@ jobs:
           fi
           echo "CORS_ALLOW_CREDENTIALS=$(get conexao-de-sorte-cors-allow-credentials)" >> $GITHUB_ENV
           
-          # Azure Client Secret (para solução híbrida)
-          echo "AZURE_CLIENT_SECRET_VALUE=$(get conexao-de-sorte-azure-client-secret)" >> $GITHUB_ENV
+          # OIDC Only: sem client secret
 
           # Create secure secrets directory
           SECRETS_DIR=$(mktemp -d -p /tmp conexao_secrets_XXXX)
@@ -345,10 +343,9 @@ jobs:
             -e SERVER_PORT=8082 \
             -e SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/ \
             -e TZ=${{ env.TZ }} \
-            -e AZURE_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}" \
-            -e AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
-            -e AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET_VALUE}" \
-            -e AZURE_KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT}}" \
+            -e AZURE_CLIENT_ID="${{ vars.AZURE_CLIENT_ID }}" \
+            -e AZURE_TENANT_ID="${{ vars.AZURE_TENANT_ID }}" \
+            -e AZURE_KEYVAULT_ENDPOINT="${{ vars.AZURE_KEYVAULT_ENDPOINT}}" \
             -e AZURE_KEYVAULT_ENABLED=true \
             -e conexao_de_sorte_database_r2dbc_url="${DB_R2DBC_URL}" \
             -e conexao_de_sorte_database_username="${DB_USERNAME}" \

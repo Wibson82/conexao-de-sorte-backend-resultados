@@ -1,16 +1,17 @@
 package br.tec.facilitaservicos.resultados.configuracao;
 
-import com.azure.core.credential.TokenCredential;
-import com.azure.identity.ClientSecretCredentialBuilder;
-import com.azure.security.keyvault.secrets.SecretClient;
-import com.azure.security.keyvault.secrets.SecretClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.azure.core.credential.TokenCredential;
+import com.azure.identity.ClientSecretCredentialBuilder;
+import com.azure.security.keyvault.secrets.SecretClient;
+import com.azure.security.keyvault.secrets.SecretClientBuilder;
 
 /**
  * ============================================================================
@@ -47,6 +48,8 @@ public class AzureKeyVaultConfig {
     private boolean enabled = true;
     private boolean fallbackEnabled = true;
 
+    private static final String STATUS_MISSING = "❌ MISSING";
+    private static final String STATUS_OK = "✅ OK";
     /**
      * Configura o cliente Azure Key Vault usando Client Secret Credential
      * 
@@ -68,11 +71,11 @@ public class AzureKeyVaultConfig {
             isBlank(runtimeTenantId) || isBlank(runtimeEndpoint)) {
             
             logger.warn("⚠️ Azure Key Vault credentials incompletas. Verificar variáveis de ambiente:");
-            logger.warn("   AZURE_CLIENT_ID: {}", isBlank(runtimeClientId) ? "❌ MISSING" : "✅ OK");
-            logger.warn("   AZURE_CLIENT_SECRET: {}", isBlank(runtimeClientSecret) ? "❌ MISSING" : "✅ OK");  
-            logger.warn("   AZURE_TENANT_ID: {}", isBlank(runtimeTenantId) ? "❌ MISSING" : "✅ OK");
-            logger.warn("   AZURE_KEYVAULT_ENDPOINT: {}", isBlank(runtimeEndpoint) ? "❌ MISSING" : "✅ OK");
-            
+            logger.warn("   AZURE_CLIENT_ID: {}", isBlank(runtimeClientId) ? STATUS_MISSING : STATUS_OK);
+            logger.warn("   AZURE_CLIENT_SECRET: {}", isBlank(runtimeClientSecret) ? STATUS_MISSING : STATUS_OK);
+            logger.warn("   AZURE_TENANT_ID: {}", isBlank(runtimeTenantId) ? STATUS_MISSING : STATUS_OK);
+            logger.warn("   AZURE_KEYVAULT_ENDPOINT: {}", isBlank(runtimeEndpoint) ? STATUS_MISSING : STATUS_OK);
+
             if (!fallbackEnabled) {
                 throw new IllegalStateException("Azure Key Vault credentials incompletas e fallback desabilitado");
             }
@@ -96,9 +99,11 @@ public class AzureKeyVaultConfig {
                     .buildClient();
 
             logger.info("✅ Azure Key Vault Client configurado com sucesso");
-            logger.info("   Endpoint: {}", maskEndpoint(runtimeEndpoint));
-            logger.info("   Client ID: {}", maskClientId(runtimeClientId));
-            logger.info("   Tenant ID: {}", maskTenantId(runtimeTenantId));
+            if (logger.isInfoEnabled()) {
+                logger.info("   Endpoint: {}", maskEndpoint(runtimeEndpoint));
+                logger.info("   Client ID: {}", maskClientId(runtimeClientId));
+                logger.info("   Tenant ID: {}", maskTenantId(runtimeTenantId));
+            }
             
             return secretClient;
             
