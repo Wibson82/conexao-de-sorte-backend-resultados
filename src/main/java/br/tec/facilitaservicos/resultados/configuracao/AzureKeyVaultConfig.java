@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 import com.azure.core.credential.TokenCredential;
-import com.azure.identity.ClientSecretCredentialBuilder;
+import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.security.keyvault.secrets.SecretClient;
 import com.azure.security.keyvault.secrets.SecretClientBuilder;
 
@@ -43,7 +43,6 @@ public class AzureKeyVaultConfig {
 
     private String endpoint;
     private String clientId;
-    private String clientSecret;
     private String tenantId;
     private boolean enabled = true;
     private boolean fallbackEnabled = true;
@@ -63,16 +62,13 @@ public class AzureKeyVaultConfig {
         
         // Obter credenciais das variáveis de ambiente (injetadas pelo CI/CD)
         String runtimeClientId = getEnvironmentVariable("AZURE_CLIENT_ID", clientId);
-        String runtimeClientSecret = getEnvironmentVariable("AZURE_CLIENT_SECRET", clientSecret);
         String runtimeTenantId = getEnvironmentVariable("AZURE_TENANT_ID", tenantId);
         String runtimeEndpoint = getEnvironmentVariable("AZURE_KEYVAULT_ENDPOINT", endpoint);
         
-        if (isBlank(runtimeClientId) || isBlank(runtimeClientSecret) || 
-            isBlank(runtimeTenantId) || isBlank(runtimeEndpoint)) {
+        if (isBlank(runtimeClientId) || isBlank(runtimeTenantId) || isBlank(runtimeEndpoint)) {
             
             logger.warn("⚠️ Azure Key Vault credentials incompletas. Verificar variáveis de ambiente:");
             logger.warn("   AZURE_CLIENT_ID: {}", isBlank(runtimeClientId) ? STATUS_MISSING : STATUS_OK);
-            logger.warn("   AZURE_CLIENT_SECRET: {}", isBlank(runtimeClientSecret) ? STATUS_MISSING : STATUS_OK);
             logger.warn("   AZURE_TENANT_ID: {}", isBlank(runtimeTenantId) ? STATUS_MISSING : STATUS_OK);
             logger.warn("   AZURE_KEYVAULT_ENDPOINT: {}", isBlank(runtimeEndpoint) ? STATUS_MISSING : STATUS_OK);
 
@@ -85,12 +81,8 @@ public class AzureKeyVaultConfig {
         }
 
         try {
-            // Criar credential usando Client Secret (obtido via OIDC no CI/CD)
-            TokenCredential credential = new ClientSecretCredentialBuilder()
-                    .clientId(runtimeClientId)
-                    .clientSecret(runtimeClientSecret)
-                    .tenantId(runtimeTenantId)
-                    .build();
+            // OIDC-only: usar DefaultAzureCredential (Workload Identity)
+            TokenCredential credential = new DefaultAzureCredentialBuilder().build();
 
             // Criar cliente Key Vault
             SecretClient secretClient = new SecretClientBuilder()
@@ -165,8 +157,7 @@ public class AzureKeyVaultConfig {
     public String getClientId() { return clientId; }
     public void setClientId(String clientId) { this.clientId = clientId; }
 
-    public String getClientSecret() { return clientSecret; }
-    public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
+    // clientSecret removido (OIDC-only)
 
     public String getTenantId() { return tenantId; }
     public void setTenantId(String tenantId) { this.tenantId = tenantId; }

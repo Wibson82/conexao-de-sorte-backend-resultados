@@ -173,7 +173,8 @@ azure:
     enabled: ${AZURE_KEYVAULT_ENABLED:true}
     endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
     client-id: ${AZURE_CLIENT_ID:}
-    client-secret: ${AZURE_CLIENT_SECRET:}  # Injetado pelo CI/CD via OIDC
+    # OIDC-only: sem client-secret
+    # client-secret: (não utilizar)
     tenant-id: ${AZURE_TENANT_ID:}
     fallback-enabled: ${AZURE_KEYVAULT_FALLBACK:true}
 
