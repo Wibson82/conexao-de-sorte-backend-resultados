@@ -118,7 +118,7 @@ curl -f http://localhost:8080/actuator/health/db
 # Se o microserviço de auth estiver rodando, testar JWT
 # (Substituir por endpoint real de validação)
 curl -H "Authorization: Bearer <test-jwt-token>" \
-  http://localhost:8080/api/v1/resultados/test
+  http://localhost:8080/rest/v1/resultados/test
 # Deve retornar 200 com token válido, 401 sem token
 ```
 

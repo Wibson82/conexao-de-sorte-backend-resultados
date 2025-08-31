@@ -24,10 +24,10 @@ import br.tec.facilitaservicos.resultados.configuracao.AplicacaoProperties;
  * - Rate limiting por endpoint
  * 
  * Endpoints:
- * - GET /api/resultados - Buscar resultados paginados
- * - GET /api/resultados/{id} - Buscar resultado específico
- * - GET /api/resultados/ranking - Ranking com filtros
- * - GET /api/resultados/estatisticas - Estatísticas agregadas
+ * - GET /rest/v1/resultados - Buscar resultados paginados
+ * - GET /rest/v1/resultados/{id} - Buscar resultado específico
+ * - GET /rest/v1/resultados/ranking - Ranking com filtros
+ * - GET /rest/v1/resultados/estatisticas - Estatísticas agregadas
  * 
  * ============================================================================
  */

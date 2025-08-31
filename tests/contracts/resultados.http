@@ -1,0 +1,13 @@
+### Resultados - contratos básicos
+@base = {{BASE_URL}}/rest/v1/resultados
+
+GET {{base}}
+?pagina=0&tamanho=10
+
+### Ranking
+GET {{base}}/ranking
+?temporada=30&limite=10
+
+### Estatísticas
+GET {{base}}/estatisticas
+

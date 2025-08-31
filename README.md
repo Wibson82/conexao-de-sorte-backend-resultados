@@ -74,7 +74,7 @@ mvn spring-boot:run
 
 ### 2. Acesse os Serviços
 
-- **API**: http://localhost:8082/api/resultados
+- **API**: http://localhost:8082/rest/v1/resultados
 - **Swagger UI**: http://localhost:8082/swagger-ui.html
 - **Actuator**: http://localhost:8082/actuator
 - **Grafana**: http://localhost:3001 (admin/<GF_SECURITY_ADMIN_PASSWORD>)
@@ -86,28 +86,28 @@ mvn spring-boot:run
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `GET` | `/api/resultados` | Buscar resultados paginados |
-| `GET` | `/api/resultados/{id}` | Buscar resultado específico |
-| `GET` | `/api/resultados/ranking` | Ranking de números mais sorteados |
-| `GET` | `/api/resultados/estatisticas` | Estatísticas agregadas |
-| `GET` | `/api/resultados/hoje` | Resultados de hoje |
-| `GET` | `/api/resultados/ultimo/{horario}` | Último resultado por horário |
-| `GET` | `/api/resultados/horarios` | Horários disponíveis por data |
+| `GET` | `/rest/v1/resultados` | Buscar resultados paginados |
+| `GET` | `/rest/v1/resultados/{id}` | Buscar resultado específico |
+| `GET` | `/rest/v1/resultados/ranking` | Ranking de números mais sorteados |
+| `GET` | `/rest/v1/resultados/estatisticas` | Estatísticas agregadas |
+| `GET` | `/rest/v1/resultados/hoje` | Resultados de hoje |
+| `GET` | `/rest/v1/resultados/ultimo/{horario}` | Último resultado por horário |
+| `GET` | `/rest/v1/resultados/horarios` | Horários disponíveis por data |
 
 ### Exemplos de Uso
 
 ```bash
 # Buscar resultados paginados
-curl "http://localhost:8082/api/resultados?pagina=0&tamanho=20&ordenarPor=dataResultado,desc"
+curl "http://localhost:8082/rest/v1/resultados?pagina=0&tamanho=20&ordenarPor=dataResultado,desc"
 
 # Buscar ranking dos últimos 30 dias
-curl "http://localhost:8082/api/resultados/ranking?temporada=30&limite=50"
+curl "http://localhost:8082/rest/v1/resultados/ranking?temporada=30&limite=50"
 
 # Buscar estatísticas gerais
-curl "http://localhost:8082/api/resultados/estatisticas"
+curl "http://localhost:8082/rest/v1/resultados/estatisticas"
 
 # Buscar resultados de hoje
-curl "http://localhost:8082/api/resultados/hoje"
+curl "http://localhost:8082/rest/v1/resultados/hoje"
 ```
 
 ## 🔧 Configuração
@@ -163,6 +163,11 @@ mvn verify
 # Testes com Testcontainers
 mvn test -Dtest=**/*IntegrationTest
 ```
+
+## ✅ Qualidade e Segurança (CI)
+
+- Cobertura: JaCoCo configurado no `pom.xml` com mínimo de 80% na fase `verify`.
+- SAST: CodeQL configurado no repositório (`.github/workflows/codeql.yml`). Recomenda-se falhar PRs para vulnerabilidades críticas/altas.
 
 ## 📊 Monitoramento
 

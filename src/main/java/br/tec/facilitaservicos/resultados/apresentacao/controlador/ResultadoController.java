@@ -40,20 +40,20 @@ import reactor.core.publisher.Mono;
  * Controlador 100% reativo para consulta de resultados usando WebFlux
  * 
  * Endpoints disponíveis:
- * - GET /api/resultados - Buscar resultados paginados
- * - GET /api/resultados/{id} - Buscar resultado específico  
- * - GET /api/resultados/ranking - Ranking de números mais sorteados
- * - GET /api/resultados/estatisticas - Estatísticas agregadas
- * - GET /api/resultados/hoje - Resultados de hoje
- * - GET /api/resultados/horarios - Horários disponíveis por data
- * - GET /api/resultados/ultimo/{horario} - Último resultado por horário
+ * - GET /rest/v1/resultados - Buscar resultados paginados
+ * - GET /rest/v1/resultados/{id} - Buscar resultado específico  
+ * - GET /rest/v1/resultados/ranking - Ranking de números mais sorteados
+ * - GET /rest/v1/resultados/estatisticas - Estatísticas agregadas
+ * - GET /rest/v1/resultados/hoje - Resultados de hoje
+ * - GET /rest/v1/resultados/horarios - Horários disponíveis por data
+ * - GET /rest/v1/resultados/ultimo/{horario} - Último resultado por horário
  * 
  * @author Sistema de Migração R2DBC
  * @version 1.0
  * @since 2024
  */
 @RestController
-@RequestMapping("/api/resultados")
+@RequestMapping("/rest/v1/resultados")
 @Validated
 @Tag(name = "Resultados", description = "API para consulta de resultados de loteria")
 public class ResultadoController {

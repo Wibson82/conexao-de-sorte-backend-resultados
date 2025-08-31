@@ -135,15 +135,15 @@ public class SecurityConfig {
                 
                 // Endpoints de consulta pública (sem autenticação necessária)
                 .pathMatchers(HttpMethod.GET,
-                    "/api/resultados",
-                    "/api/resultados/{id}",
-                    "/api/resultados/ranking",
-                    "/api/resultados/estatisticas",
-                    "/api/resultados/hoje",
-                    "/api/resultados/horarios",
-                    "/api/resultados/ultimo/{horario}"
+                    "/rest/v1/resultados",
+                    "/rest/v1/resultados/{id}",
+                    "/rest/v1/resultados/ranking",
+                    "/rest/v1/resultados/estatisticas",
+                    "/rest/v1/resultados/hoje",
+                    "/rest/v1/resultados/horarios",
+                    "/rest/v1/resultados/ultimo/{horario}"
                 ).permitAll()
-                
+            
                 // Endpoints administrativos (requerem autenticação)
                 .pathMatchers("/actuator/**").hasAuthority("SCOPE_admin")
                 

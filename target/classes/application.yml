@@ -151,13 +151,13 @@ rate-limit:
   enabled: true
   default-requests-per-minute: 120
   endpoints:
-    "/api/resultados":
+    "/rest/v1/resultados":
       requests-per-minute: 60
       burst-capacity: 100
-    "/api/resultados/ranking":
+    "/rest/v1/resultados/ranking":
       requests-per-minute: 30
       burst-capacity: 50
-    "/api/resultados/estatisticas":
+    "/rest/v1/resultados/estatisticas":
       requests-per-minute: 20
       burst-capacity: 30
 
@@ -275,5 +275,5 @@ features:
 rate-limit:
   default-requests-per-minute: 60
   endpoints:
-    "/api/resultados":
+    "/rest/v1/resultados":
       requests-per-minute: 30
