@@ -18,6 +18,9 @@ import br.tec.facilitaservicos.resultados.dominio.repositorio.RepositorioResulta
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
+import org.springframework.web.reactive.function.client.WebClient;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Serviço reativo para operações de Resultados
@@ -37,6 +40,7 @@ public class ResultadoService {
 
     private final RepositorioResultadoR2dbc repositorio;
     private final ResultadoMapper mapper;
+    private final WebClient webClient;
 
     @Value("${pagination.default-size:20}")
     private int tamanhoDefault = 20;
@@ -44,9 +48,12 @@ public class ResultadoService {
     @Value("${pagination.max-size:100}")
     private int tamanhoMaximo = TAMANHO_MAXIMO_DEFAULT;
 
-    public ResultadoService(RepositorioResultadoR2dbc repositorio, ResultadoMapper mapper) {
+    public ResultadoService(RepositorioResultadoR2dbc repositorio, 
+                           ResultadoMapper mapper,
+                           WebClient.Builder webClientBuilder) {
         this.repositorio = repositorio;
         this.mapper = mapper;
+        this.webClient = webClientBuilder.baseUrl("http://localhost:8084").build(); // Scheduler
     }
 
     /**
@@ -225,5 +232,112 @@ public class ResultadoService {
         return (flux == null ? Flux.<br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc>empty() : flux)
             .map(br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc::getHorario)
             .distinct();
+    }
+    
+    // ============================================================================
+    // 🌐 MÉTODOS PARA APIS PÚBLICAS E LOTERIAS
+    // ============================================================================
+    
+    /**
+     * Busca resultados públicos com filtros.
+     */
+    public Mono<PaginacaoDto<ResultadoDto>> buscarResultadosPublicos(int pagina, int tamanho, 
+                                                                    String modalidade, Integer periodo) {
+        final int paginaFinal = Math.max(pagina, PAGINA_MINIMA);
+        final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, 50); // Máximo 50 para público
+        
+        Pageable pageable = PageRequest.of(paginaFinal, tamanhoFinal);
+        
+        Flux<br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc> query;
+        Mono<Long> count;
+        
+        if (modalidade != null && periodo != null) {
+            LocalDate dataInicio = LocalDate.now().minusDays(periodo);
+            query = repositorio.findByModalidadeAndDataResultadoAfter(modalidade, dataInicio, pageable);
+            count = repositorio.countByModalidadeAndDataResultadoAfter(modalidade, dataInicio);
+        } else if (modalidade != null) {
+            query = repositorio.findByModalidade(modalidade, pageable);
+            count = repositorio.countByModalidade(modalidade);
+        } else if (periodo != null) {
+            LocalDate dataInicio = LocalDate.now().minusDays(periodo);
+            query = repositorio.findByDataResultadoAfter(dataInicio, pageable);
+            count = repositorio.countByDataResultadoAfter(dataInicio);
+        } else {
+            query = repositorio.findAll(pageable);
+            count = repositorio.count();
+        }
+        
+        return Mono.zip(
+            query.map(mapper::paraDto).collectList(),
+            count
+        ).map(tuple -> PaginacaoDto.criar(tuple.getT1(), paginaFinal, tamanhoFinal, tuple.getT2()));
+    }
+    
+    /**
+     * Busca resultado por horário e data.
+     */
+    public Mono<ResultadoDto> buscarPorHorarioData(String horario, LocalDate data) {
+        return repositorio.findByHorarioAndDataResultado(horario, data)
+            .map(mapper::paraDto);
+    }
+    
+    /**
+     * Dispara extração ETL via Scheduler.
+     */
+    public Mono<String> dispararExtracao(String modalidade, String data) {
+        String jobId = UUID.randomUUID().toString();
+        
+        Map<String, Object> request = Map.of(
+            "modalidade", modalidade != null ? modalidade : "megasena",
+            "data", data,
+            "jobId", jobId
+        );
+        
+        return webClient.post()
+            .uri("/jobs/loterias/etl")
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono(Map.class)
+            .map(response -> (String) response.get("jobId"))
+            .onErrorReturn(jobId); // Retorna jobId mesmo se falhar
+    }
+    
+    /**
+     * Lista modalidades disponíveis.
+     */
+    public Flux<Map<String, String>> listarModalidades() {
+        return Flux.just(
+            Map.of("codigo", "megasena", "nome", "Mega Sena"),
+            Map.of("codigo", "quina", "nome", "Quina"),
+            Map.of("codigo", "lotofacil", "nome", "Lotofácil"),
+            Map.of("codigo", "lotomania", "nome", "Lotomania"),
+            Map.of("codigo", "timemania", "nome", "Timemania"),
+            Map.of("codigo", "dupla-sena", "nome", "Dupla Sena"),
+            Map.of("codigo", "federal", "nome", "Federal")
+        );
+    }
+    
+    /**
+     * Último resultado por modalidade.
+     */
+    public Mono<ResultadoDto> buscarUltimoPorModalidade(String modalidade) {
+        return repositorio.findFirstByModalidadeOrderByDataResultadoDescHorarioDesc(modalidade)
+            .map(mapper::paraDto);
+    }
+    
+    /**
+     * Resultado por modalidade e número do concurso.
+     */
+    public Mono<ResultadoDto> buscarPorConcurso(String modalidade, Long numero) {
+        return repositorio.findByModalidadeAndNumero(modalidade, numero)
+            .map(mapper::paraDto);
+    }
+    
+    /**
+     * Resultados por período e modalidade.
+     */
+    public Flux<ResultadoDto> buscarPorPeriodo(String modalidade, LocalDate de, LocalDate ate) {
+        return repositorio.findByModalidadeAndDataResultadoBetween(modalidade, de, ate)
+            .map(mapper::paraDto);
     }
 }

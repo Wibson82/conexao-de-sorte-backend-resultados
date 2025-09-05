@@ -27,7 +27,8 @@ spring:
   # Segredos vindos do Azure Key Vault via R2dbcUrlNormalizer (programação defensiva)
   # URLs JDBC são automaticamente convertidas para R2DBC
   r2dbc:
-    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
+    # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
+    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}}
     username: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     pool:
@@ -182,7 +183,7 @@ azure:
 server:
   port: ${SERVER_PORT:8082}
   servlet:
-    context-path: /api/v1
+    context-path: /rest/v1
   compression:
     enabled: true
   http2:

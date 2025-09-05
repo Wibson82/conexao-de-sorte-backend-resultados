@@ -12,17 +12,29 @@ spring:
     time-zone: America/Sao_Paulo
     locale: pt_BR
   
-  # Configtree secret management
+  # Config import para Azure Key Vault secrets
   config:
     import:
-      - optional:configtree:/run/secrets/
       - optional:configtree:/etc/secrets/azure/
       - optional:configtree:/mnt/secrets/
       - optional:file:./secrets.properties
+      
+  # Azure Key Vault (padrão simplificado)
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          enabled: ${AZURE_KEYVAULT_ENABLED:false}
+          endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
+      profile:
+        tenant-id: ${AZURE_TENANT_ID:}
+        subscription-id: ${AZURE_SUBSCRIPTION_ID:}
+        client-id: ${AZURE_CLIENT_ID:}
 
   # R2DBC - define defaults seguros para Docker com segredos Azure Key Vault
   r2dbc:
-    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
+    # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
+    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}}
     username: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     pool:
@@ -58,11 +70,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:http://conexao-auth:8081/.well-known/jwks.json}
+          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${conexao-de-sorte-jwt-issuer:https://auth.conexaodesorte.com}
 
 server:
-  port: ${SERVER_PORT:8082}
+  port: ${SERVER_PORT:8083}
   shutdown: graceful
   
   # SSL/TLS Configuration - segredos Azure Key Vault
@@ -231,7 +243,7 @@ spring:
       on-profile: prod
       
   r2dbc:
-    url: ${conexao-de-sorte-database-url:r2dbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
     username: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     pool:
@@ -239,12 +251,12 @@ spring:
       max-size: 100
       
   flyway:
-    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://conexao-mysql:3306/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=true}
+    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
     user: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     
 server:
-  port: 8082
+  port: 8083
   ssl:
     enabled: ${SSL_ENABLED:false}
     

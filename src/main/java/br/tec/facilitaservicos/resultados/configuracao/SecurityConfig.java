@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
@@ -36,6 +37,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
  */
 @Configuration
 @EnableWebFluxSecurity
+@EnableReactiveMethodSecurity
 public class SecurityConfig {
 
     // Constantes para valores repetidos
@@ -141,7 +143,10 @@ public class SecurityConfig {
                     "/rest/v1/resultados/estatisticas",
                     "/rest/v1/resultados/hoje",
                     "/rest/v1/resultados/horarios",
-                    "/rest/v1/resultados/ultimo/{horario}"
+                    "/rest/v1/resultados/ultimo/{horario}",
+                    
+                    // Novos endpoints públicos de consulta
+                    "/rest/v1/loterias/**"
                 ).permitAll()
             
                 // Endpoints administrativos (requerem autenticação)

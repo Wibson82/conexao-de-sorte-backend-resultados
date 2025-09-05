@@ -217,4 +217,15 @@ public interface RepositorioResultadoR2dbc extends R2dbcRepository<ResultadoR2db
      */
     @Query("SELECT * FROM resultados ORDER BY data_resultado DESC, horario")
     Flux<ResultadoR2dbc> findAllPaginado(Pageable pageable);
+
+    // Métodos adicionados para corrigir a falha de compilação
+    Flux<ResultadoR2dbc> findByModalidadeAndDataResultadoAfter(String modalidade, LocalDate dataResultado, Pageable pageable);
+    Mono<Long> countByModalidadeAndDataResultadoAfter(String modalidade, LocalDate dataResultado);
+    Flux<ResultadoR2dbc> findByModalidade(String modalidade, Pageable pageable);
+    Mono<Long> countByModalidade(String modalidade);
+    Flux<ResultadoR2dbc> findByDataResultadoAfter(LocalDate dataResultado, Pageable pageable);
+    Mono<Long> countByDataResultadoAfter(LocalDate dataResultado);
+    Mono<ResultadoR2dbc> findFirstByModalidadeOrderByDataResultadoDescHorarioDesc(String modalidade);
+    Mono<ResultadoR2dbc> findByModalidadeAndNumero(String modalidade, Long numero);
+    Flux<ResultadoR2dbc> findByModalidadeAndDataResultadoBetween(String modalidade, LocalDate dataInicio, LocalDate dataFim);
 }

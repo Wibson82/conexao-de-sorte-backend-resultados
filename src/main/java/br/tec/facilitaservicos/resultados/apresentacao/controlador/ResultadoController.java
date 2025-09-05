@@ -8,6 +8,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -198,5 +200,159 @@ public class ResultadoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data
     ) {
         return service.buscarHorariosPorData(data).collectList();
+    }
+    
+    // ============================================================================
+    // 🌐 ENDPOINTS PÚBLICOS DE EXTRAÇÃO E LOTERIAS
+    // ============================================================================
+    
+    /**
+     * 🎯 Endpoint público para buscar resultados paginados (sem autenticação).
+     */
+    @Operation(summary = "Buscar resultados públicos", 
+               description = "Busca resultados paginados - endpoint público")
+    @GetMapping(value = "/publico", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-public")
+    public Mono<ResponseEntity<PaginacaoDto<ResultadoDto>>> buscarResultadosPublicos(
+            @Parameter(description = "Página", example = "0")
+            @RequestParam(defaultValue = "0") @Min(0) int pagina,
+            
+            @Parameter(description = "Tamanho", example = "20")  
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int tamanho,
+            
+            @Parameter(description = "Modalidade", example = "megasena")
+            @RequestParam(required = false) String modalidade,
+            
+            @Parameter(description = "Período em dias", example = "30")
+            @RequestParam(required = false) @Min(1) Integer periodo
+    ) {
+        return service.buscarResultadosPublicos(pagina, tamanho, modalidade, periodo)
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.noContent().build());
+    }
+    
+    /**
+     * 🎯 Último resultado público por horário.
+     */
+    @Operation(summary = "Último resultado público por horário")
+    @GetMapping(value = "/publico/ultimo/{horario}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-public")
+    public Mono<ResponseEntity<ResultadoDto>> buscarUltimoPublicoPorHorario(
+            @Parameter(description = "Horário", example = "14:00")
+            @PathVariable @Pattern(regexp = "^\\d{2}:\\d{2}$") String horario
+    ) {
+        return service.buscarUltimoPorHorario(horario)
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * 🎯 Resultado público por horário e data.
+     */
+    @Operation(summary = "Resultado público por horário e data")
+    @GetMapping(value = "/publico/horarioData/{horario}/{data}", 
+                produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-public")
+    public Mono<ResponseEntity<ResultadoDto>> buscarResultadoPorHorarioData(
+            @Parameter(description = "Horário", example = "14:00")
+            @PathVariable @Pattern(regexp = "^\\d{2}:\\d{2}$") String horario,
+            
+            @Parameter(description = "Data", example = "2024-01-15")
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data
+    ) {
+        return service.buscarPorHorarioData(horario, data)
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * 🚀 Endpoint para disparar extração pública (admin).
+     */
+    @Operation(summary = "Disparar extração pública", 
+               description = "Dispara job ETL de extração (admin only)")
+    @PostMapping(value = "/publico/extrair", 
+                 consumes = MediaType.APPLICATION_JSON_VALUE,
+                 produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-admin")
+    public Mono<ResponseEntity<java.util.Map<String, String>>> extrairResultadosPublicos(
+            @Parameter(description = "Dados da extração")
+            @RequestBody java.util.Map<String, String> request
+    ) {
+        String modalidade = request.get("modalidade");
+        String data = request.get("data");
+        
+        return service.dispararExtracao(modalidade, data)
+            .map(jobId -> ResponseEntity.ok(java.util.Map.of("jobId", jobId)))
+            .onErrorResume(throwable -> 
+                Mono.just(ResponseEntity.status(500)
+                    .body(java.util.Map.of("error", throwable.getMessage()))));
+    }
+    
+    // ============================================================================
+    // 🎲 ENDPOINTS DE LOTERIAS ESPECÍFICAS
+    // ============================================================================
+    
+    /**
+     * 📋 Lista de modalidades de loterias disponíveis.
+     */
+    @Operation(summary = "Modalidades de loterias", 
+               description = "Lista todas as modalidades disponíveis")
+    @GetMapping(value = "/loterias/modalidades", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-public")
+    public Flux<java.util.Map<String, String>> listarModalidades() {
+        return service.listarModalidades();
+    }
+    
+    /**
+     * 🎯 Último resultado de uma modalidade específica.
+     */
+    @Operation(summary = "Último resultado por modalidade")
+    @GetMapping(value = "/loterias/{modalidade}/ultimo", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-public")
+    public Mono<ResponseEntity<ResultadoDto>> buscarUltimoPorModalidade(
+            @Parameter(description = "Modalidade", example = "megasena")
+            @PathVariable String modalidade
+    ) {
+        return service.buscarUltimoPorModalidade(modalidade)
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * 🎯 Resultado por modalidade e número do concurso.
+     */
+    @Operation(summary = "Resultado por concurso")
+    @GetMapping(value = "/loterias/{modalidade}/concurso/{numero}", 
+                produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-public")
+    public Mono<ResponseEntity<ResultadoDto>> buscarPorConcurso(
+            @Parameter(description = "Modalidade", example = "megasena")
+            @PathVariable String modalidade,
+            
+            @Parameter(description = "Número do concurso", example = "2700")
+            @PathVariable @Min(1) Long numero
+    ) {
+        return service.buscarPorConcurso(modalidade, numero)
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * 📊 Resultados por modalidade em período específico.
+     */
+    @Operation(summary = "Resultados por período")
+    @GetMapping(value = "/loterias/{modalidade}/periodo", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RateLimiter(name = "resultados-public")
+    public Flux<ResultadoDto> buscarPorPeriodo(
+            @Parameter(description = "Modalidade", example = "megasena")
+            @PathVariable String modalidade,
+            
+            @Parameter(description = "Data inicial", example = "2024-01-01")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
+            
+            @Parameter(description = "Data final", example = "2024-01-31")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate
+    ) {
+        return service.buscarPorPeriodo(modalidade, de, ate);
     }
 }

@@ -10,7 +10,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import br.tec.facilitaservicos.resultados.dominio.entidade.base.ReactiveAuditableEntity;
+import br.tec.facilitaservicos.common.entity.ReactiveAuditableEntity;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;

@@ -12,11 +12,11 @@
     </parent>
 
     <groupId>br.tec.facilitaservicos</groupId>
-    <artifactId>resultados</artifactId>
+    <artifactId>results-catalog</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-    <name>Resultados Microservice</name>
-    <description>Microserviço de resultados de loteria federal e do jogo do bicho reativo com Spring WebFlux e R2DBC</description>
+    <name>Results and Catalog Consolidated Microservice</name>
+    <description>Microserviço consolidado de resultados de loteria e catálogo de itens com Spring WebFlux e R2DBC</description>
 
     <properties>
         <java.version>24</java.version>
@@ -27,7 +27,7 @@
         <logstash.version>8.1</logstash.version>
         
         <!-- Testcontainers -->
-        <testcontainers.version>1.20.4</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
         
     </properties>
 
@@ -46,6 +46,16 @@
                 <groupId>com.nimbusds</groupId>
                 <artifactId>nimbus-jose-jwt</artifactId>
                 <version>10.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-json</artifactId>
+                <version>1.5.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microsoft.azure</groupId>
+                <artifactId>msal4j</artifactId>
+                <version>1.22.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -182,6 +192,13 @@
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+
+        <!-- Biblioteca compartilhada de entidades -->
+        <dependency>
+            <groupId>br.tec.facilitaservicos</groupId>
+            <artifactId>common-entities</artifactId>
+            <version>1.0.0</version>
         </dependency>
 
         <!-- Jackson -->
@@ -326,23 +343,62 @@
                 </executions>
             </plugin>
 
-            <!-- SpotBugs + FindSecBugs tuned for High severity gating -->
+            <!-- Checkstyle - Melhor compatibilidade com Java 24 -->
             <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>4.8.6.2</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.5.0</version>
                 <configuration>
-                    <effort>Max</effort>
-                    <threshold>High</threshold>
-                    <failOnError>true</failOnError>
-                    <plugins>
-                        <plugin>
-                            <groupId>com.h3xstream.findsecbugs</groupId>
-                            <artifactId>findsecbugs-plugin</artifactId>
-                            <version>1.13.0</version>
-                        </plugin>
-                    </plugins>
+                    <configLocation>google_checks.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>false</failsOnError>
+                    <maxAllowedViolations>50</maxAllowedViolations>
                 </configuration>
+                <executions>
+                    <execution>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Enforcer Plugin - Anti-downgrade policies -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[24,)</version>
+                            <message>🚫 DOWNGRADE BLOCKED: Java 24+ required, found ${java.version}</message>
+                        </requireJavaVersion>
+                        <requireMavenVersion>
+                            <version>[3.9.0,)</version>
+                            <message>🚫 DOWNGRADE BLOCKED: Maven 3.9.0+ required</message>
+                        </requireMavenVersion>
+                        <bannedDependencies>
+                            <excludes>
+                                <exclude>org.springframework.boot:spring-boot-starter-web</exclude>
+                                <exclude>org.springframework:spring-webmvc</exclude>
+                            </excludes>
+                            <message>🚫 BLOCKED: Legacy dependencies not allowed (use WebFlux, not WebMVC)</message>
+                        </bannedDependencies>
+                        <dependencyConvergence/>
+                    </rules>
+                    <fail>true</fail>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>enforce-versions</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Flyway plugin para migrations -->
