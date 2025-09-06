@@ -1,4 +1,4 @@
-name: 🔐 Resultados Microservice - CI/CD Pipeline
+name: 🔐 Criptografia-KMS Microservice - CI/CD Pipeline
 
 on:
   push:
@@ -17,16 +17,17 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  SERVICE_NAME: resultados
+  SERVICE_NAME: criptografia-kms
   TZ: America/Sao_Paulo
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   test-runner:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     name: 🧪 Test Self-hosted Runner
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +54,8 @@ jobs:
 
   build-and-test:
     needs: test-runner
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     name: 🏗️ Build and Test
     steps:
       - uses: actions/checkout@v4
@@ -91,7 +93,7 @@ jobs:
       #       --all-projects 
       #       --severity-threshold=high 
       #       --fail-on=all 
-      #       --project-name=resultados-service
+      #       --project-name=criptografia-kms-service
       # - name: Monitor with Snyk (main branch only)
       #   if: github.ref == 'refs/heads/main'
       #   uses: snyk/actions/maven@master
@@ -99,18 +101,19 @@ jobs:
       #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       #   with:
       #     command: monitor
-      #     args: --project-name=resultados-service
+      #     args: --project-name=criptografia-kms-service
       - name: Build application (skip tests)
         run: ./mvnw clean package -DskipTests
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: resultados-microservice-jar
+          name: criptografia-kms-microservice-jar
           path: target/*.jar
           retention-days: 7
 
   build-image:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     name: 🐳 Build Docker Image
     needs: build-and-test
     permissions:
@@ -160,8 +163,7 @@ jobs:
             conexao-de-sorte-redis-database
             conexao-de-sorte-jwt-issuer
             conexao-de-sorte-jwt-jwks-uri
-            conexao-de-sorte-cors-allowed-origins
-            conexao-de-sorte-cors-allow-credentials
+            conexao-de-sorte-encryption-master-key
           )
           for s in "${secrets[@]}"; do fetch "$s"; done
       - name: Compute lowercase image name
@@ -190,8 +192,8 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value={{date 'YYYY-MM-DD-HHmmss'}}-{{sha}},enable={{is_default_branch}}
           labels: |
-            org.opencontainers.image.title=Resultados Microservice
-            org.opencontainers.image.description=Lottery Results Microservice
+            org.opencontainers.image.title=Criptografia-KMS Microservice
+            org.opencontainers.image.description=Cryptography and Key Management Service
             org.opencontainers.image.service=${{ env.SERVICE_NAME }}
       - name: Build and push image
         id: build
@@ -208,10 +210,6 @@ jobs:
           cache-to: type=gha,mode=max
           network: host
           build-args: |
-            SERVICE_NAME=${{ env.SERVICE_NAME }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_id }}
-            VCS_REF=${{ github.sha }}
-            VERSION=1.0.0
             CONEXAO_DE_SORTE_DATABASE_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_URL }}
             CONEXAO_DE_SORTE_DATABASE_JDBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_JDBC_URL }}
             CONEXAO_DE_SORTE_DATABASE_R2DBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL }}
@@ -223,8 +221,11 @@ jobs:
             CONEXAO_DE_SORTE_REDIS_DATABASE=${{ env.CONEXAO_DE_SORTE_REDIS_DATABASE }}
             CONEXAO_DE_SORTE_JWT_ISSUER=${{ env.CONEXAO_DE_SORTE_JWT_ISSUER }}
             CONEXAO_DE_SORTE_JWT_JWKS_URI=${{ env.CONEXAO_DE_SORTE_JWT_JWKS_URI }}
-            CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS }}
-            CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS }}
+            CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY }}
+            SERVICE_NAME=${{ env.SERVICE_NAME }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_id }}
+            VCS_REF=${{ github.sha }}
+            VERSION=1.0.0
 
   sign-image:
     runs-on: self-hosted
@@ -281,7 +282,7 @@ jobs:
 
   deploy-production:
     needs: [build-image, sign-image]
-    runs-on: self-hosted
+    runs-on: [self-hosted, criptografia-kms-service]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
     name: 🌟 Deploy to Production (Self-hosted)
     permissions:
@@ -296,33 +297,13 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Load Azure Key Vault secrets
-        run: |
-          set -euo pipefail
-          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
-          if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
-            VAULT="${BASH_REMATCH[1]}"
-          else
-            echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
-            exit 1
-          fi
-          get() { az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv; }
-          echo "DB_URL=$(get conexao-de-sorte-database-url)" >> $GITHUB_ENV
-          echo "DB_USER=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
-          echo "DB_PASS=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
-          echo "REDIS_HOST=$(get conexao-de-sorte-redis-host)" >> $GITHUB_ENV
-          echo "REDIS_PORT=$(get conexao-de-sorte-redis-port)" >> $GITHUB_ENV
-          echo "REDIS_PASS=$(get conexao-de-sorte-redis-password)" >> $GITHUB_ENV
-          echo "REDIS_DB=$(get conexao-de-sorte-redis-database)" >> $GITHUB_ENV
-          echo "JWT_JWKS_URI=$(get conexao-de-sorte-jwt-jwks-uri)" >> $GITHUB_ENV
-          echo "JWT_ISSUER=$(get conexao-de-sorte-jwt-issuer)" >> $GITHUB_ENV
       - name: 🧹 Clean old containers
         run: |
-          echo "🧹 Cleaning old resultados-microservice containers..."
-          if docker ps -a --format '{{.Names}}' | grep -q '^resultados-microservice$'; then
-            docker stop 'resultados-microservice' && docker rm 'resultados-microservice'
+          echo "🧹 Cleaning old criptografia-kms-microservice containers..."
+          if docker ps -a --format '{{.Names}}' | grep -q '^criptografia-kms-microservice$'; then
+            docker stop 'criptografia-kms-microservice' && docker rm 'criptografia-kms-microservice'
           fi
-      - name: 🚀 Deploy resultados-microservice
+      - name: 🚀 Deploy criptografia-kms-microservice
         run: |
           set -euo pipefail
           IMAGE_DIGEST="${{ needs.build-image.outputs.image-digest }}"
@@ -332,40 +313,37 @@ jobs:
           docker pull "${FULL_IMAGE}"
           docker network create conexao-network 2>/dev/null || true
           docker run -d \
-            --name "resultados-microservice" \
+            --name "criptografia-kms-microservice" \
             --network conexao-network \
             --restart unless-stopped \
-            -p "8083:8083" \
-            --health-cmd="curl -f -s http://localhost:8083/actuator/health/readiness || exit 1" \
+            -p "8088:8088" \
+            --health-cmd="curl -f http://localhost:8088/rest/v1/kms/actuator/health/readiness || exit 1" \
             --health-interval=30s \
             --health-timeout=10s \
             --health-retries=5 \
             --health-start-period=60s \
-            -e SPRING_PROFILES_ACTIVE="prod" \
-            -e SERVER_PORT="8083" \
+            -e SPRING_PROFILES_ACTIVE="prod,azure" \
+            -e SERVER_PORT="8088" \
             -e TZ="America/Sao_Paulo" \
-            -e conexao-de-sorte-database-url="$DB_URL" \
-            -e conexao-de-sorte-database-username="$DB_USER" \
-            -e conexao-de-sorte-database-password="$DB_PASS" \
-            -e conexao-de-sorte-redis-host="$REDIS_HOST" \
-            -e conexao-de-sorte-redis-port="$REDIS_PORT" \
-            -e conexao-de-sorte-redis-password="$REDIS_PASS" \
-            -e conexao-de-sorte-redis-database="$REDIS_DB" \
-            -e conexao-de-sorte-jwt-jwks-uri="$JWT_JWKS_URI" \
-            -e conexao-de-sorte-jwt-issuer="$JWT_ISSUER" \
+            -e AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' \
+            -e AZURE_TENANT_ID='${{ secrets.AZURE_TENANT_ID }}' \
+            -e AZURE_SUBSCRIPTION_ID='${{ secrets.AZURE_SUBSCRIPTION_ID }}' \
+            -e AZURE_KEYVAULT_ENDPOINT='${{ secrets.AZURE_KEYVAULT_ENDPOINT }}' \
+            -e AZURE_KEYVAULT_NAME='${{ secrets.AZURE_KEYVAULT_NAME }}' \
+            -e AZURE_KEYVAULT_ENABLED=true \
             --label "traefik.enable=true" \
             --label "traefik.docker.network=conexao-network" \
-            --label "traefik.http.routers.resultados.rule=Host(\\`resultados.conexaodesorte.com.br\\`)" \
-            --label "traefik.http.routers.resultados.entrypoints=websecure" \
-            --label "traefik.http.routers.resultados.tls.certresolver=letsencrypt" \
-            --label "traefik.http.services.resultados.loadbalancer.server.port=8083" \
+            --label "traefik.http.routers.criptografia-kms.rule=Host(\\`crypto.conexaodesorte.com.br\\`)" \
+            --label "traefik.http.routers.criptografia-kms.entrypoints=websecure" \
+            --label "traefik.http.routers.criptografia-kms.tls.certresolver=letsencrypt" \
+            --label "traefik.http.services.criptografia-kms.loadbalancer.server.port=8088" \
             "${FULL_IMAGE}"
       - name: Wait for service to be ready
         run: |
           TIMEOUT=180
           ELAPSED=0
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            if docker exec resultados-microservice curl -f -s http://localhost:8083/actuator/health/readiness >/dev/null 2>&1; then
+            if docker exec criptografia-kms-microservice curl -f -s http://localhost:8088/rest/v1/kms/actuator/health/readiness >/dev/null 2>&1; then
               echo "✅ Service is ready and healthy!"
               exit 0
             fi
@@ -373,7 +351,7 @@ jobs:
             ELAPSED=$((ELAPSED + 10))
           done
           echo "❌ Service failed to become ready"
-          docker logs resultados-microservice
+          docker logs criptografia-kms-microservice
           exit 1
 
   notify:
@@ -396,5 +374,5 @@ jobs:
           fi
           if [ -n "${SLACK_WEBHOOK_URL}" ]; then
             curl -X POST -H 'Content-type: application/json' \
-            --data "{'text':'$STATUS: Resultados Microservice Deployment','attachments':[{'color':'$COLOR','fields':[{'title':'Branch','value':'${{ github.ref_name }}','short':true},{'title':'Commit','value':'${{ github.sha }}','short':true}]}]}" \
+            --data "{'text':'$STATUS: Criptografia-KMS Microservice Deployment','attachments':[{'color':'$COLOR','fields':[{'title':'Branch','value':'${{ github.ref_name }}','short':true},{'title':'Commit','value':'${{ github.sha }}','short':true}]}]}" \
             $SLACK_WEBHOOK_URL
