@@ -3,8 +3,8 @@ spring:
     name: resultados
     
   profiles:
-    default: azure
-    # Perfil azure garante integração com Azure Key Vault em produção
+    default: prod
+    # Perfil de produção; integração com Azure Key Vault via variáveis/Key Vault
   
   main:
     allow-bean-definition-overriding: true

@@ -121,9 +121,9 @@ AZURE_KEYVAULT_NAME=kv-conexao-de-sorte
 4. `conexao-de-sorte-jwt-issuer` - Issuer JWT (valor: conexaodesorte.com.br)
 5. `conexao-de-sorte-jwt-jwks-uri` - JWKS URI (valor: https://conexaodesorte.com.br/.well-known/jwks.json)
 6. `conexao-de-sorte-encryption-backup-key` - Chave de backup criptografia
-7. `conexao-de-sorte-ssl-enabled` - SSL habilitado (valor: false)
-8. `conexao-de-sorte-ssl-keystore-path` - Caminho keystore SSL
-9. `conexao-de-sorte-ssl-keystore-password` - Senha keystore SSL
+7. `conexao-de-sorte-ssl-enabled` - manter `false` (TLS no Traefik/ACME)
+8. `conexao-de-sorte-ssl-keystore-path` - não utilizado (TLS na borda)
+9. `conexao-de-sorte-ssl-keystore-password` - não utilizado (TLS na borda)
 10. `conexao-de-sorte-cors-allowed-origins` - Origins CORS (valor: https://conexaodesorte.com.br)
 11. `conexao-de-sorte-cors-allow-credentials` - Credenciais CORS (valor: true)
 

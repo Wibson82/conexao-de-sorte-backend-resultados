@@ -124,9 +124,9 @@ az keyvault secret set --vault-name kv-conexao-de-sorte --name conexao-de-sorte-
 - `conexao-de-sorte-encryption-backup-key` → Chave gerada automaticamente
 
 #### **🌐 SSL/TLS (3 secrets):**
-- `conexao-de-sorte-ssl-enabled` → `false` (desabilitado)
-- `conexao-de-sorte-ssl-keystore-path` → `none`
-- `conexao-de-sorte-ssl-keystore-password` → `none`
+- `conexao-de-sorte-ssl-enabled` → `false` (TLS no Traefik)
+- `conexao-de-sorte-ssl-keystore-path` → `none` (não usado)
+- `conexao-de-sorte-ssl-keystore-password` → `none` (não usado)
 
 #### **🔗 CORS (2 secrets):**
 - `conexao-de-sorte-cors-allowed-origins` → `https://conexaodesorte.com.br`
