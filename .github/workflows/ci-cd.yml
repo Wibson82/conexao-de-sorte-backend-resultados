@@ -208,6 +208,10 @@ jobs:
           cache-to: type=gha,mode=max
           network: host
           build-args: |
+            SERVICE_NAME=${{ env.SERVICE_NAME }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_id }}
+            VCS_REF=${{ github.sha }}
+            VERSION=1.0.0
             CONEXAO_DE_SORTE_DATABASE_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_URL }}
             CONEXAO_DE_SORTE_DATABASE_JDBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_JDBC_URL }}
             CONEXAO_DE_SORTE_DATABASE_R2DBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL }}
@@ -221,11 +225,6 @@ jobs:
             CONEXAO_DE_SORTE_JWT_JWKS_URI=${{ env.CONEXAO_DE_SORTE_JWT_JWKS_URI }}
             CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS }}
             CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS }}
-          build-args: |
-            SERVICE_NAME=${{ env.SERVICE_NAME }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_id }}
-            VCS_REF=${{ github.sha }}
-            VERSION=1.0.0
 
   sign-image:
     runs-on: self-hosted
