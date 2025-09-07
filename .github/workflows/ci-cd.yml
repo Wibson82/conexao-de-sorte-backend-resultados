@@ -68,6 +68,7 @@ jobs:
     name: 🏗️ Build and Test on GitHub Runners
     steps:
       - uses: actions/checkout@v4
+        timeout-minutes: 10
       - name: Setup Java 24
         timeout-minutes: 10
         uses: actions/setup-java@v4
@@ -92,7 +93,7 @@ jobs:
           retention-days: 1
 
   build-deploy-selfhosted:
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, conexao-de-sorte-backend-resultados]
     timeout-minutes: 10
     name: 🚀 Build & Deploy on Self-hosted Runner (Ubuntu)
     needs: build-and-test
@@ -102,6 +103,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        timeout-minutes: 10
       
       - name: Verificar ambiente do self-hosted runner
         timeout-minutes: 10
