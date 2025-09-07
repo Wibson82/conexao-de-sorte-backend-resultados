@@ -1,141 +1,155 @@
-# ✅ SOLUÇÃO: Runner srv649924 Offline
+# ✅ SOLUÇÃO: Runner Resultados Identificado
 
-## 🔍 Diagnóstico Confirmado
-- **Problema:** Runner `srv649924` está **OFFLINE**
-- **Causa:** Serviço `actions-runner` parado no servidor
-- **Impacto:** Workflow aguarda runner disponível indefinidamente
-- **Labels:** ✅ Corretos (self-hosted, conexao-de-sorte-backend-resultados)
+## 🔍 Descoberta Importante
+- **Runner Correto:** `actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service`
+- **Status Atual:** ✅ **LOADED ACTIVE RUNNING**
+- **Problema:** Usamos nome genérico `actions-runner` em vez do nome específico
 
-## 🚀 Solução Passo-a-Passo
+## 🚀 Comandos Corretos para o Projeto
 
-### Passo 1: Conectar ao Servidor
+### Verificar Status do Runner Resultados
 ```bash
-# Conectar via SSH ao servidor do runner
-ssh usuario@srv649924
-# OU usando IP se hostname não resolver
-ssh usuario@IP_DO_SERVIDOR_649924
+# Status específico do runner resultados
+sudo systemctl status actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
+
+# Verificar se está ativo
+sudo systemctl is-active actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
 ```
 
-### Passo 2: Verificar Status Atual
+### Gerenciar o Runner Resultados
 ```bash
-# Verificar se o serviço existe e seu status
-sudo systemctl status actions-runner
+# Parar o runner (se necessário)
+sudo systemctl stop actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
 
-# Verificar processos relacionados
-ps aux | grep -i runner
+# Iniciar o runner
+sudo systemctl start actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
 
-# Verificar logs recentes
-sudo journalctl -u actions-runner --no-pager -n 20
-```
-
-### Passo 3: Reativar o Runner
-```bash
-# Iniciar o serviço
-sudo systemctl start actions-runner
-
-# Verificar se iniciou corretamente
-sudo systemctl status actions-runner
+# Reiniciar o runner
+sudo systemctl restart actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
 
 # Habilitar inicialização automática
-sudo systemctl enable actions-runner
+sudo systemctl enable actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
 ```
 
-### Passo 4: Verificação Imediata
+### Verificar Logs do Runner Resultados
 ```bash
-# Confirmar que está rodando
-sudo systemctl is-active actions-runner
-# Deve retornar: active
-
-# Verificar conectividade com GitHub
-curl -s -o /dev/null -w "%{http_code}" https://api.github.com
-# Deve retornar: 200
-```
-
-## 🔧 Se o Serviço Não Iniciar
-
-### Opção A: Reinicialização Manual
-```bash
-# Parar completamente
-sudo systemctl stop actions-runner
-
-# Ir para diretório do runner
-cd /opt/actions-runner
-# OU
-cd /home/actions-runner/actions-runner
-
-# Executar manualmente para ver erros
-sudo -u actions-runner ./run.sh
-```
-
-### Opção B: Reconfiguração Completa
-```bash
-# Remover configuração atual
-cd /opt/actions-runner
-sudo -u actions-runner ./config.sh remove --token SEU_TOKEN_AQUI
-
-# Reconfigurar com novo token
-sudo -u actions-runner ./config.sh \
-  --url https://github.com/Wibson82/conexao-de-sorte-backend-resultados \
-  --token SEU_TOKEN_AQUI \
-  --labels conexao,conexao-de-sorte-backend-resultados \
-  --name srv649924
-
-# Reinstalar como serviço
-sudo ./svc.sh install
-sudo ./svc.sh start
-```
-
-## 📊 Verificação Final
-
-### No Servidor:
-```bash
-# Status do serviço
-sudo systemctl status actions-runner
-
 # Logs em tempo real
-sudo journalctl -u actions-runner -f
+sudo journalctl -u actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service -f
+
+# Últimas 50 linhas de log
+sudo journalctl -u actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service -n 50
+
+# Logs de hoje
+sudo journalctl -u actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service --since today
 ```
 
-### No GitHub (via CLI):
+## 🔧 Comandos de Diagnóstico
+
+### Verificar Todos os Runners
 ```bash
-# Verificar status do runner
-gh api repos/Wibson82/conexao-de-sorte-backend-resultados/actions/runners \
-  --jq '.runners[] | select(.name == "srv649924") | {name: .name, status: .status}'
+# Listar todos os runners ativos
+sudo systemctl list-units --type=service | grep actions.runner
+
+# Status de todos os runners
+sudo systemctl status 'actions.runner.*'
 ```
 
-### Resultado Esperado:
+### Verificar Conectividade
+```bash
+# Testar conexão com GitHub
+curl -s -o /dev/null -w "%{http_code}" https://api.github.com
+
+# Verificar DNS
+nslookup github.com
+
+# Verificar portas
+netstat -tuln | grep :443
+```
+
+## 📊 Verificação no GitHub
+
+### Via CLI do GitHub
+```bash
+# Status específico do runner resultados
+gh api repos/Wibson82/conexao-de-sorte-backend-resultados/actions/runners \
+  --jq '.runners[] | select(.name == "srv649924") | {name: .name, status: .status, labels: [.labels[].name]}'
+```
+
+### Resultado Esperado
 ```json
 {
   "name": "srv649924",
-  "status": "online"
+  "status": "online",
+  "labels": [
+    "self-hosted",
+    "Linux",
+    "X64",
+    "conexao",
+    "conexao-de-sorte-backend-resultados"
+  ]
 }
 ```
 
-## ⚡ Teste Rápido
+## ⚡ Teste Rápido do Workflow
 
-1. **Executar workflow manualmente:**
-   - Ir para Actions no GitHub
-   - Executar "Resultados - CI/CD Pipeline"
-   - Verificar se job `build-deploy-selfhosted` inicia
+### Forçar Execução do Workflow
+```bash
+# No diretório do projeto
+cd /caminho/para/conexao-de-sorte-backend-resultados
 
-2. **Ou fazer push simples:**
-   ```bash
-   git commit --allow-empty -m "test: verificar runner online"
-   git push
-   ```
+# Commit vazio para testar
+git commit --allow-empty -m "test: verificar runner resultados online"
+git push
 
-## 🕐 Tempo Estimado
-- **Reativação simples:** 2-3 minutos
-- **Reconfiguração completa:** 5-10 minutos
-- **Verificação:** 1-2 minutos
+# OU executar manualmente via GitHub CLI
+gh workflow run "Resultados - CI/CD Pipeline" --ref main
+```
 
-## 📞 Próximos Passos
-1. ✅ Conectar ao servidor srv649924
-2. ✅ Executar `sudo systemctl start actions-runner`
-3. ✅ Verificar status: `sudo systemctl status actions-runner`
-4. ✅ Confirmar online no GitHub
-5. ✅ Testar workflow
+## 🛠️ Comandos de Manutenção
+
+### Reiniciar Runner se Necessário
+```bash
+# Reinicialização completa
+sudo systemctl restart actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
+
+# Verificar se reiniciou corretamente
+sudo systemctl status actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
+```
+
+### Monitoramento Contínuo
+```bash
+# Monitorar logs em tempo real
+sudo journalctl -u actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service -f --no-pager
+
+# Verificar uso de recursos
+top -p $(pgrep -f "Wibson82-conexao-de-sorte-backend-resultados")
+```
+
+## 📋 Checklist de Verificação
+
+- [ ] ✅ Runner está **ACTIVE RUNNING**
+- [ ] ✅ Conectividade com GitHub OK
+- [ ] ✅ Labels corretos no GitHub
+- [ ] ✅ Workflow executa sem aguardar
+- [ ] ✅ Logs sem erros críticos
+
+## 🎯 Comandos Essenciais (Resumo)
+
+```bash
+# 1. Verificar status
+sudo systemctl status actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
+
+# 2. Reiniciar se necessário
+sudo systemctl restart actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
+
+# 3. Verificar no GitHub
+gh api repos/Wibson82/conexao-de-sorte-backend-resultados/actions/runners --jq '.runners[] | select(.name == "srv649924")'
+
+# 4. Testar workflow
+git commit --allow-empty -m "test: runner" && git push
+```
 
 ---
-**Status:** Runner deve ficar ONLINE após execução dos comandos acima.
+**Status:** Runner específico identificado e comandos atualizados.
 **Última atualização:** $(date '+%Y-%m-%d %H:%M:%S')
+**Serviço:** `actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service`
