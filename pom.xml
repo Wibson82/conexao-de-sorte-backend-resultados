@@ -23,8 +23,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         
         <!-- Dependências para documentação -->
-        <springdoc.version>2.8.9</springdoc.version>
+        <springdoc.version>2.8.11</springdoc.version>
         <logstash.version>8.1</logstash.version>
+        <spring-cloud.version>2025.0.0</spring-cloud.version>
         
         <!-- Testcontainers -->
         <testcontainers.version>1.21.3</testcontainers.version>
@@ -33,6 +34,30 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Spring Cloud BOM para compatibilidade -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Azure SDK BOM -->
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <version>1.2.37</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Cloud Azure BOM -->
+            <dependency>
+                <groupId>com.azure.spring</groupId>
+                <artifactId>spring-cloud-azure-dependencies</artifactId>
+                <version>5.23.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <!-- Testcontainers BOM -->
             <dependency>
                 <groupId>org.testcontainers</groupId>
@@ -110,25 +135,20 @@
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
-        <!-- Azure Key Vault Integration - Solução Híbrida OIDC -->
-        <!-- Removidas dependências automáticas do Spring Cloud Azure -->
-        <!-- Secrets são injetados via environment variables do CI/CD OIDC -->
+        <!-- Azure Key Vault Dependencies -->
         <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-security-keyvault-secrets</artifactId>
-            <version>4.10.2</version>
+            <groupId>com.azure.spring</groupId>
+            <artifactId>spring-cloud-azure-starter-keyvault-secrets</artifactId>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
-            <version>1.17.0</version>
         </dependency>
 
         <!-- Resiliência -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
-            <version>3.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
