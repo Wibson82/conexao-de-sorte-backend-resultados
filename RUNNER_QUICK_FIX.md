@@ -1,9 +1,38 @@
-# ✅ SOLUÇÃO: Runner Resultados Identificado
+# 🚨 RUNNER QUICK FIX - srv649924
 
-## 🔍 Descoberta Importante
-- **Runner Correto:** `actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service`
-- **Status Atual:** ✅ **LOADED ACTIVE RUNNING**
-- **Problema:** Usamos nome genérico `actions-runner` em vez do nome específico
+## 🔍 DIAGNÓSTICO COMPLETO REALIZADO
+**Problema Principal Identificado:**
+- ❌ Runner tentando usar usuário 'actions-runner' **INEXISTENTE**
+- ✅ Usuário correto disponível: **'runner'**
+- 🔧 Serviço: **actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service**
+- 📁 Diretório: **/opt/actions-runner**
+
+## ⚡ Status Atual (Pós-Diagnóstico)
+- 🔄 Runner está **ATIVO** mas com **ERROS DE PERMISSÃO**
+- ❌ Falha: `Access to the path '/opt/actions-runner/_diag/Runner_*.log' is denied`
+- ❌ Erro: `chown: invalid user: 'actions-runner:actions-runner'`
+- 🎯 **SOLUÇÃO CRIADA**: Script de correção automática
+
+## 🛠️ SOLUÇÃO DEFINITIVA
+
+### 📋 Script de Correção Automática
+**Arquivo:** `RUNNER_FIX_PERMISSIONS.sh`
+
+**O que o script faz:**
+1. ✅ Para o serviço problemático
+2. ✅ Corrige proprietário: `actions-runner` → `runner`
+3. ✅ Ajusta todas as permissões do diretório `/opt/actions-runner`
+4. ✅ Corrige configuração do serviço systemd
+5. ✅ Remove logs antigos problemáticos
+6. ✅ Reinicia o serviço com configurações corretas
+7. ✅ Verifica conectividade com GitHub
+
+**Como executar no servidor srv649924:**
+```bash
+# Tornar executável e executar
+chmod +x RUNNER_FIX_PERMISSIONS.sh
+./RUNNER_FIX_PERMISSIONS.sh
+```
 
 ## 🚀 Comandos Corretos para o Projeto
 
