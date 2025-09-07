@@ -263,7 +263,7 @@ public class ResultadoService {
             query = repositorio.findByDataResultadoAfter(dataInicio, pageable);
             count = repositorio.countByDataResultadoAfter(dataInicio);
         } else {
-            query = repositorio.findAll(pageable);
+            query = repositorio.findAllPaginado(pageable);
             count = repositorio.count();
         }
         

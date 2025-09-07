@@ -32,8 +32,8 @@ public class ResultadoMapper {
             entidade.obterNumeros(),
             entidade.getSoma(),
             entidade.getDataResultado(),
-            entidade.getDataCriacao(),
-            entidade.getDataModificacao()
+            entidade.getCriadoEm(),
+            entidade.getAtualizadoEm()
         );
     }
 
