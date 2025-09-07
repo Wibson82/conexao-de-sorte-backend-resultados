@@ -19,7 +19,10 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mockito.Mock;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -28,14 +31,23 @@ import reactor.core.publisher.Mono;
 
 @WebFluxTest(controllers = ResultadoController.class)
 @AutoConfigureWebTestClient
-@Import(WebFluxTestConfig.class)
+@Import({WebFluxTestConfig.class, ResultadoControllerContractTest.TestConfig.class})
 class ResultadoControllerContractTest {
 
     @Autowired
     private WebTestClient webTestClient;
 
-    @MockBean
+    @Autowired
     private ResultadoService resultadoService;
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        @Primary
+        public ResultadoService resultadoService() {
+            return Mockito.mock(ResultadoService.class);
+        }
+    }
 
     @Test
     @DisplayName("GET /rest/v1/resultados deve retornar 200 com paginação")

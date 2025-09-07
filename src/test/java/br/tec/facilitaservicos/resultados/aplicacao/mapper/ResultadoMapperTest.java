@@ -22,9 +22,11 @@ class ResultadoMapperTest {
                 .quarto("04").quinto("05").sexto("06").setimo("07")
                 .soma("28")
                 .dataResultado(LocalDate.now())
-                .dataCriacao(LocalDateTime.now())
-                .dataModificacao(LocalDateTime.now())
                 .build();
+        
+        // Definir campos de auditoria manualmente para o teste
+        entidade.setCriadoEm(LocalDateTime.now());
+        entidade.setAtualizadoEm(LocalDateTime.now());
 
         ResultadoDto dto = mapper.paraDto(entidade);
         assertEquals("12:00", dto.horario());

@@ -39,7 +39,11 @@ public class IntegracaoSchedulerService {
                 .body(BodyInserters.fromValue(body))
                 .retrieve()
                 .bodyToMono(Map.class)
-                .map(resp -> String.valueOf(resp.getOrDefault("jobId", "")));
+                .map(resp -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> response = (Map<String, Object>) resp;
+                    return String.valueOf(response.getOrDefault("jobId", ""));
+                });
     }
 }
 

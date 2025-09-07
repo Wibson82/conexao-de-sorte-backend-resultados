@@ -298,6 +298,46 @@ public class ResultadoR2dbc extends ReactiveAuditableEntity {
             return this;
         }
 
+        public Builder primeiro(String primeiro) {
+            this.primeiro = primeiro;
+            return this;
+        }
+
+        public Builder segundo(String segundo) {
+            this.segundo = segundo;
+            return this;
+        }
+
+        public Builder terceiro(String terceiro) {
+            this.terceiro = terceiro;
+            return this;
+        }
+
+        public Builder quarto(String quarto) {
+            this.quarto = quarto;
+            return this;
+        }
+
+        public Builder quinto(String quinto) {
+            this.quinto = quinto;
+            return this;
+        }
+
+        public Builder sexto(String sexto) {
+            this.sexto = sexto;
+            return this;
+        }
+
+        public Builder setimo(String setimo) {
+            this.setimo = setimo;
+            return this;
+        }
+
+        public Builder soma(String soma) {
+            // Soma será calculada automaticamente no build()
+            return this;
+        }
+
         public Builder numeros(String primeiro, String segundo, String terceiro, String quarto,
                               String quinto, String sexto, String setimo) {
             this.primeiro = primeiro;
