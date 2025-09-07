@@ -1,4 +1,4 @@
-name: 🔐 Resultados - CI/CD Pipeline (Self-hosted Runners)
+name: Resultados - CI/CD Pipeline (Self-hosted Runners)
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
   validate-environment:
     runs-on: ubuntu-latest
     timeout-minutes: 20 # Step timeouts: 10 + 10
-    name: ✅ Validate Build Environment
+    name: Validate Build Environment
     steps:
       - uses: actions/checkout@v4
       - name: "Guard: forbid r2dbc:h2 outside tests"
@@ -53,7 +53,7 @@ jobs:
     needs: validate-environment
     runs-on: ubuntu-latest
     timeout-minutes: 40 # Step timeouts: 10 + 10 + 10 + 10
-    name: 🏗️ Build and Test on GitHub Runners
+    name: Build and Test on GitHub Runners
     steps:
       - uses: actions/checkout@v4
       - name: Setup Java 24
@@ -80,9 +80,9 @@ jobs:
           retention-days: 1
 
   build-deploy-selfhosted:
-        runs-on: [self-hosted, conexao-de-sorte-backend-resultados]
+    runs-on: [self-hosted, conexao-de-sorte-backend-resultados]
     timeout-minutes: 80 # Step timeouts: 10 * 8
-    name: 🚀 Build & Deploy on Self-hosted Runner (Ubuntu)
+    name: Build & Deploy on Self-hosted Runner (Ubuntu)
     needs: build-and-test
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
     permissions:
@@ -159,7 +159,7 @@ jobs:
           
           echo "✅ Azure Key Vault secrets loaded successfully" >&2
           
-      - name: 🧹 Clean old containers
+      - name: Clean old containers
         timeout-minutes: 10
         run: |
           set -euo pipefail
@@ -178,7 +178,7 @@ jobs:
           docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${{ env.SERVICE_NAME }}:" | head -n -1 | xargs -r docker rmi || true
           echo "✅ Container cleanup completed"
 
-      - name: 🐳 Build Docker image (Local - Self-hosted)
+      - name: Build Docker image (Local - Self-hosted)
         id: build
         timeout-minutes: 10
         run: |
@@ -198,7 +198,7 @@ jobs:
           echo "image_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "✅ Image built locally on self-hosted runner (NO REGISTRY)"
 
-      - name: 🚀 Deploy container directly
+      - name: Deploy container directly
         timeout-minutes: 10
         run: |
           set -euo pipefail
@@ -285,11 +285,11 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    name: 📢 Notification
+    name: Notification
     if: always()
     needs: [build-and-test, build-deploy-selfhosted]
     steps:
-      - name: 📧 Send Slack notification
+      - name: Send Slack notification
         if: always()
         timeout-minutes: 10
         env:
