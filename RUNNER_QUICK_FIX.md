@@ -1,91 +1,141 @@
-# Solução Rápida - Runner Offline srv649924
+# ✅ SOLUÇÃO: Runner srv649924 Offline
 
-## Status Atual
-- **Runner:** srv649924
-- **Status:** OFFLINE ❌
-- **Labels:** ✅ Corretos (self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-resultados)
-- **Problema:** Workflow aguardando runner disponível
+## 🔍 Diagnóstico Confirmado
+- **Problema:** Runner `srv649924` está **OFFLINE**
+- **Causa:** Serviço `actions-runner` parado no servidor
+- **Impacto:** Workflow aguarda runner disponível indefinidamente
+- **Labels:** ✅ Corretos (self-hosted, conexao-de-sorte-backend-resultados)
 
-## Solução Imediata
+## 🚀 Solução Passo-a-Passo
 
-### 1. Conectar ao Servidor
+### Passo 1: Conectar ao Servidor
 ```bash
-# SSH para o servidor do runner
+# Conectar via SSH ao servidor do runner
 ssh usuario@srv649924
-# ou
-ssh usuario@IP_DO_SERVIDOR
+# OU usando IP se hostname não resolver
+ssh usuario@IP_DO_SERVIDOR_649924
 ```
 
-### 2. Verificar Status do Serviço
+### Passo 2: Verificar Status Atual
 ```bash
-# Verificar se o serviço está rodando
+# Verificar se o serviço existe e seu status
 sudo systemctl status actions-runner
 
-# Verificar logs do runner
-sudo journalctl -u actions-runner -f --no-pager
+# Verificar processos relacionados
+ps aux | grep -i runner
+
+# Verificar logs recentes
+sudo journalctl -u actions-runner --no-pager -n 20
 ```
 
-### 3. Reativar o Runner
+### Passo 3: Reativar o Runner
 ```bash
 # Iniciar o serviço
 sudo systemctl start actions-runner
 
-# Habilitar para inicialização automática
-sudo systemctl enable actions-runner
+# Verificar se iniciou corretamente
+sudo systemctl status actions-runner
 
-# Verificar se está ativo
-sudo systemctl is-active actions-runner
+# Habilitar inicialização automática
+sudo systemctl enable actions-runner
 ```
 
-### 4. Verificação Rápida
+### Passo 4: Verificação Imediata
 ```bash
-# Verificar se o processo está rodando
-ps aux | grep actions-runner
+# Confirmar que está rodando
+sudo systemctl is-active actions-runner
+# Deve retornar: active
 
 # Verificar conectividade com GitHub
-curl -I https://api.github.com
+curl -s -o /dev/null -w "%{http_code}" https://api.github.com
+# Deve retornar: 200
 ```
 
-## Comandos de Emergência
+## 🔧 Se o Serviço Não Iniciar
 
-### Se o serviço não iniciar:
+### Opção A: Reinicialização Manual
 ```bash
 # Parar completamente
 sudo systemctl stop actions-runner
 
-# Reiniciar manualmente
+# Ir para diretório do runner
 cd /opt/actions-runner
+# OU
+cd /home/actions-runner/actions-runner
+
+# Executar manualmente para ver erros
 sudo -u actions-runner ./run.sh
 ```
 
-### Se houver problemas de token:
+### Opção B: Reconfiguração Completa
 ```bash
-# Reconfigurar o runner
+# Remover configuração atual
 cd /opt/actions-runner
-sudo -u actions-runner ./config.sh remove --token NOVO_TOKEN
-sudo -u actions-runner ./config.sh --url https://github.com/Wibson82/conexao-de-sorte-backend-resultados --token NOVO_TOKEN --labels conexao,conexao-de-sorte-backend-resultados
+sudo -u actions-runner ./config.sh remove --token SEU_TOKEN_AQUI
+
+# Reconfigurar com novo token
+sudo -u actions-runner ./config.sh \
+  --url https://github.com/Wibson82/conexao-de-sorte-backend-resultados \
+  --token SEU_TOKEN_AQUI \
+  --labels conexao,conexao-de-sorte-backend-resultados \
+  --name srv649924
+
+# Reinstalar como serviço
+sudo ./svc.sh install
+sudo ./svc.sh start
 ```
 
-## Verificação Final
+## 📊 Verificação Final
 
-1. **Status no GitHub:**
+### No Servidor:
+```bash
+# Status do serviço
+sudo systemctl status actions-runner
+
+# Logs em tempo real
+sudo journalctl -u actions-runner -f
+```
+
+### No GitHub (via CLI):
+```bash
+# Verificar status do runner
+gh api repos/Wibson82/conexao-de-sorte-backend-resultados/actions/runners \
+  --jq '.runners[] | select(.name == "srv649924") | {name: .name, status: .status}'
+```
+
+### Resultado Esperado:
+```json
+{
+  "name": "srv649924",
+  "status": "online"
+}
+```
+
+## ⚡ Teste Rápido
+
+1. **Executar workflow manualmente:**
+   - Ir para Actions no GitHub
+   - Executar "Resultados - CI/CD Pipeline"
+   - Verificar se job `build-deploy-selfhosted` inicia
+
+2. **Ou fazer push simples:**
    ```bash
-   gh api repos/Wibson82/conexao-de-sorte-backend-resultados/actions/runners --jq '.runners[] | select(.name == "srv649924") | {name: .name, status: .status}'
+   git commit --allow-empty -m "test: verificar runner online"
+   git push
    ```
 
-2. **Testar Workflow:**
-   - Fazer um push ou executar workflow manualmente
-   - Verificar se o job é executado no runner
-
-## Tempo Estimado
-- **Reativação:** 2-5 minutos
+## 🕐 Tempo Estimado
+- **Reativação simples:** 2-3 minutos
+- **Reconfiguração completa:** 5-10 minutos
 - **Verificação:** 1-2 minutos
-- **Total:** 3-7 minutos
 
-## Contatos de Emergência
-- **DevOps:** [inserir contato]
-- **Infraestrutura:** [inserir contato]
+## 📞 Próximos Passos
+1. ✅ Conectar ao servidor srv649924
+2. ✅ Executar `sudo systemctl start actions-runner`
+3. ✅ Verificar status: `sudo systemctl status actions-runner`
+4. ✅ Confirmar online no GitHub
+5. ✅ Testar workflow
 
 ---
-**Criado em:** $(date)
-**Status:** Aguardando execução
+**Status:** Runner deve ficar ONLINE após execução dos comandos acima.
+**Última atualização:** $(date '+%Y-%m-%d %H:%M:%S')
