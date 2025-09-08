@@ -81,12 +81,9 @@ server:
   port: ${SERVER_PORT:8083}
   shutdown: graceful
   
-  # SSL/TLS Configuration - segredos Azure Key Vault
+  # SSL/TLS desabilitado - Traefik gerencia terminação SSL
   ssl:
-    enabled: ${conexao-de-sorte-ssl-enabled:false}
-    key-store: ${conexao-de-sorte-ssl-keystore-path:}
-    key-store-password: ${conexao-de-sorte-ssl-keystore-password:}
-    key-store-type: PKCS12
+    enabled: false
     
   netty:
     connection-timeout: 20s
@@ -262,7 +259,7 @@ spring:
 server:
   port: 8083
   ssl:
-    enabled: ${SSL_ENABLED:false}
+    enabled: false
     
 management:
   endpoints:

@@ -156,6 +156,7 @@ jobs:
           echo "DB_PORT=$(get conexao-de-sorte-db-port)" >> $GITHUB_ENV
           echo "DB_USERNAME=$(get conexao-de-sorte-db-username)" >> $GITHUB_ENV
           echo "DB_PASSWORD=$(get conexao-de-sorte-db-password)" >> $GITHUB_ENV
+          echo "PROXYSQL_PASSWORD=$(get conexao-de-sorte-database-proxysql-password)" >> $GITHUB_ENV
           
           echo "✅ Azure Key Vault secrets loaded successfully" >&2
           
@@ -238,6 +239,7 @@ jobs:
             -e SPRING_FLYWAY_URL="jdbc:mysql://${{ env.DB_HOST }}:${{ env.DB_PORT }}/$DB_NAME" \
             -e SPRING_FLYWAY_USER="${{ env.DB_USERNAME }}" \
             -e SPRING_FLYWAY_PASSWORD="${{ env.DB_PASSWORD }}" \
+            -e PROXYSQL_PASSWORD="${{ env.PROXYSQL_PASSWORD }}" \
             -e SPRING_REDIS_HOST="${{ env.REDIS_HOST }}" \
             -e SPRING_REDIS_PORT="${{ env.REDIS_PORT }}" \
             -e SPRING_REDIS_PASSWORD="${{ env.REDIS_PASSWORD }}" \

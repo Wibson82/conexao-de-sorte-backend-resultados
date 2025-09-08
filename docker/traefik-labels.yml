@@ -1,0 +1,85 @@
+# =============================================================================
+# CONFIGURAÇÃO TRAEFIK LABELS - MICROSERVIÇO RESULTADOS
+# =============================================================================
+# Este arquivo contém as labels necessárias para configurar o Traefik
+# como proxy reverso com terminação SSL para o microserviço de resultados.
+# =============================================================================
+
+# Labels para docker-compose.yml ou docker run
+labels:
+  # Habilitar Traefik para este serviço
+  - "traefik.enable=true"
+  
+  # Configuração do roteador HTTP (redirecionamento para HTTPS)
+  - "traefik.http.routers.resultados-http.rule=Host(`api.conexaodesorte.com`) && PathPrefix(`/resultados`)"
+  - "traefik.http.routers.resultados-http.entrypoints=web"
+  - "traefik.http.routers.resultados-http.middlewares=redirect-to-https"
+  
+  # Configuração do roteador HTTPS
+  - "traefik.http.routers.resultados.rule=Host(`api.conexaodesorte.com`) && PathPrefix(`/resultados`)"
+  - "traefik.http.routers.resultados.entrypoints=websecure"
+  - "traefik.http.routers.resultados.tls=true"
+  - "traefik.http.routers.resultados.tls.certresolver=letsencrypt"
+  
+  # Configuração do serviço (backend)
+  - "traefik.http.services.resultados.loadbalancer.server.port=8083"
+  - "traefik.http.services.resultados.loadbalancer.server.scheme=http"
+  
+  # Middleware de redirecionamento HTTPS
+  - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+  - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+  
+  # Middleware de headers de segurança
+  - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
+  - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+  - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
+  - "traefik.http.middlewares.security-headers.headers.stsSeconds=31536000"
+  - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
+  - "traefik.http.middlewares.security-headers.headers.stsPreload=true"
+  
+  # Aplicar middlewares ao roteador HTTPS
+  - "traefik.http.routers.resultados.middlewares=security-headers"
+  
+  # Health check personalizado (opcional)
+  - "traefik.http.services.resultados.loadbalancer.healthcheck.path=/actuator/health"
+  - "traefik.http.services.resultados.loadbalancer.healthcheck.interval=30s"
+  - "traefik.http.services.resultados.loadbalancer.healthcheck.timeout=10s"
+
+# =============================================================================
+# EXEMPLO DE USO NO DOCKER-COMPOSE.YML
+# =============================================================================
+# version: '3.8'
+# services:
+#   resultados:
+#     image: conexao-resultados:latest
+#     networks:
+#       - traefik-network
+#     labels:
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.resultados.rule=Host(`api.conexaodesorte.com`) && PathPrefix(`/resultados`)"
+#       - "traefik.http.routers.resultados.tls=true"
+#       - "traefik.http.routers.resultados.tls.certresolver=letsencrypt"
+#       - "traefik.http.services.resultados.loadbalancer.server.port=8083"
+# 
+# networks:
+#   traefik-network:
+#     external: true
+# =============================================================================
+
+# =============================================================================
+# CONFIGURAÇÃO TRAEFIK PRINCIPAL (traefik.yml)
+# =============================================================================
+# entryPoints:
+#   web:
+#     address: ":80"
+#   websecure:
+#     address: ":443"
+# 
+# certificatesResolvers:
+#   letsencrypt:
+#     acme:
+#       email: admin@conexaodesorte.com
+#       storage: /data/acme.json
+#       httpChallenge:
+#         entryPoint: web
+# =============================================================================

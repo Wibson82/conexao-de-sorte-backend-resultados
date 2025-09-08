@@ -162,6 +162,11 @@ main() {
     create_secret_file "spring.flyway.user" "$DB_USER"
     create_secret_file "spring.flyway.password" "$DB_PASSWORD"
     
+    # ProxySQL secrets
+    log "🔗 Processing ProxySQL secrets..."
+    PROXYSQL_PASSWORD=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-proxysql-password" --query value -o tsv 2>/dev/null || echo "")
+    create_secret_file "PROXYSQL_PASSWORD" "$PROXYSQL_PASSWORD"
+    
     # Redis secrets
     log "🚀 Processing Redis secrets..."
     REDIS_HOST=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-redis-host" --query value -o tsv 2>/dev/null || echo "redis")
@@ -199,7 +204,7 @@ main() {
     create_secret_file "ENCRYPTION_MASTER_KEY" "$ENCRYPTION_MASTER_KEY"
     
     # Clear sensitive variables from memory
-    unset DB_PASSWORD REDIS_PASSWORD JWT_SECRET ENCRYPTION_MASTER_KEY
+    unset DB_PASSWORD REDIS_PASSWORD JWT_SECRET ENCRYPTION_MASTER_KEY PROXYSQL_PASSWORD
     unset JWT_SIGNING_KEY JWT_VERIFICATION_KEY JWT_SIGNING_KEY_B64 JWT_VERIFICATION_KEY_B64
     
     log "📋 Secrets setup verification:"
