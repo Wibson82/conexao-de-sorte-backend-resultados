@@ -1,123 +1,279 @@
-root@srv649924:~# docker container ps
-CONTAINER ID   IMAGE                                                  COMMAND                  CREATED          STATUS                                     PORTS                                                                          NAMES
-b46291a8e532   ghcr.io/wibson82/conexao-de-sorte-backend-resultados   "/app/docker-entrypo…"   32 seconds ago   Up Less than a second (health: starting)   5005/tcp, 0.0.0.0:8082->8082/tcp, [::]:8082->8082/tcp                          resultados-microservice
-f16fe06d4de2   traefik:v3.1                                           "/entrypoint.sh --pr…"   9 days ago       Up 9 days                                  0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp   traefik
-c1fdd4e532f9   facilita/conexao-de-sorte-frontend:latest              "dumb-init -- serve …"   10 days ago      Up 10 days (healthy)                       0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp                                    conexao-frontend
-3dcbb32fc262   mysql:8.4                                              "docker-entrypoint.s…"   2 weeks ago      Up 13 days                                 0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp, 33060/tcp                         conexao-mysql
-037bafe7e94c   facilita/conexao-de-sorte-backend:30-07-2025-17-01     "dumb-init -- /app/b…"   3 weeks ago      Up 10 days (healthy)                       8080/tcp                                                                       backend-prod
-97ff4c87c716   b5239da13ab0                                           "/bin/prometheus --c…"   7 weeks ago      Up 13 days                                 0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp                                    conexao-prometheus
-root@srv649924:~# docker logs b46291a8e532
-2025-08-27T15:29:24-0300 � Iniciando aplicação Java
-Picked up JAVA_TOOL_OPTIONS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx1024m -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Dfile.encoding=UTF-8
+root@srv649924:~# sudo nano RUNNER_DIAGNOSTIC.sh
+root@srv649924:~# chmod +x RUNNER_DIAGNOSTIC.sh && git add RUNNER_DIAGNOSTIC.sh && git commit -m "feat: adicionar script de diagnóstico completo do runner srv649924" && git push
+fatal: not a git repository (or any of the parent directories): .git
+root@srv649924:~# chmod +x RUNNER_DIAGNOSTIC.sh && git add RUNNER_DIAGNOSTIC.sh && git commit -m "feat: adicionar script de diagnóstico completo do runner srv649924" && git push
+fatal: not a git repository (or any of the parent directories): .git
+root@srv649924:~# # No servidor srv649924, execute:
+./RUNNER_DIAGNOSTIC.sh
+� DIAGNÓSTICO COMPLETO DO RUNNER srv649924
+=============================================
 
-  .   ____          _            __ _ _
- /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
-( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
- \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
-  '  |____| .__|_| |_|_| |_\__, | / / / /
- =========|_|==============|___/=/_/_/_/
+� 1. STATUS ATUAL DO RUNNER
+----------------------------
+[INFO] Verificando status do serviço...
+● actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service - GitHub Actions Runner (Wibson82-conexao-de-sorte-backend-resultados.srv649924)
+     Loaded: loaded (/etc/systemd/system/actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service; enabled; preset: enabled)
+     Active: active (running) since Sun 2025-09-07 13:56:43 -03; 2min 59s ago
+   Main PID: 3773935 (runsvc.sh)
+      Tasks: 8 (limit: 9485)
+     Memory: 26.8M (peak: 36.7M)
+        CPU: 25.424s
+     CGroup: /system.slice/actions.runner.Wibson82-conexao-de-sorte-backend-resultados.srv649924.service
+             ├─3773935 /bin/bash /opt/actions-runner/runsvc.sh
+             └─3773942 ./externals/node20/bin/node ./bin/RunnerService.js
 
- :: Spring Boot ::                (v3.5.5)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String path, OpenFlags flags, Int32 mode, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, UnixFileMode openPermissions, Int64& fileLength, UnixFileMode& filePermissions, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at System.IO.FileStream..ctor(String path, FileMode mode, FileAccess access, FileShare share, Int32 bufferSize)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener.CreatePageLogWriter()
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener..ctor(String logFileDirectory, String logFilePrefix, Int32 pageSizeLimit, Int32 retentionDays)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostContext..ctor(String hostType, String logFile)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Listener.Program.Main(String[] args)
+Sep 07 13:59:38 srv649924 runsvc.sh[3773942]: Runner listener exited with error code null
+Sep 07 13:59:38 srv649924 runsvc.sh[3773942]: Runner listener exit with undefined return code, re-launch runner in 5 seconds.
 
-2025-08-27 15:29:27.233 [main] INFO  [,] b.t.f.r.ResultadosApplication - Starting ResultadosApplication v1.0.0 using Java 24.0.2 with PID 8 (/app/app.jar started by appuser in /app)
-2025-08-27 15:29:27.250 [main] INFO  [,] b.t.f.r.ResultadosApplication - The following 2 profiles are active: "prod", "azure"
-WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
-WARNING: sun.misc.Unsafe::allocateMemory has been called by io.netty.util.internal.PlatformDependent0$2 (jar:nested:/app/app.jar/!BOOT-INF/lib/netty-common-4.1.124.Final.jar!/)
-WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$2
-WARNING: sun.misc.Unsafe::allocateMemory will be removed in a future release
-2025-08-27 15:29:32.567 [main] WARN  [,] o.s.b.w.r.c.AnnotationConfigReactiveWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'resultadoService' defined in URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/resultados/aplicacao/servico/ResultadoService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'repositorioResultadoR2dbc' defined in br.tec.facilitaservicos.resultados.dominio.repositorio.RepositorioResultadoR2dbc defined in @EnableR2dbcRepositories declared on R2dbcConfig: Cannot resolve reference to bean 'r2dbcEntityTemplate' while setting bean property 'entityOperations'
-2025-08-27 15:29:32.623 [main] ERROR [,] o.s.boot.SpringApplication - Application run failed
-org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'resultadoService' defined in URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/resultados/aplicacao/servico/ResultadoService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'repositorioResultadoR2dbc' defined in br.tec.facilitaservicos.resultados.dominio.repositorio.RepositorioResultadoR2dbc defined in @EnableR2dbcRepositories declared on R2dbcConfig: Cannot resolve reference to bean 'r2dbcEntityTemplate' while setting bean property 'entityOperations'
-        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
-        at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1395)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1232)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
-        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1222)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1188)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1123)
-        at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987)
-        at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)
-        at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.refresh(ReactiveWebServerApplicationContext.java:66)
-        at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752)
-        at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439)
-        at org.springframework.boot.SpringApplication.run(SpringApplication.java:318)
-        at org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)
-        at org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)
-        at br.tec.facilitaservicos.resultados.ResultadosApplication.main(ResultadosApplication.java:41)
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
-        at java.base/java.lang.reflect.Method.invoke(Unknown Source)
-        at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:102)
-        at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64)
-        at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40)
-Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'repositorioResultadoR2dbc' defined in br.tec.facilitaservicos.resultados.dominio.repositorio.RepositorioResultadoR2dbc defined in @EnableR2dbcRepositories declared on R2dbcConfig: Cannot resolve reference to bean 'r2dbcEntityTemplate' while setting bean property 'entityOperations'
-        at org.springframework.beans.factory.support.BeanDefinitionValueResolver.resolveReference(BeanDefinitionValueResolver.java:377)
-        at org.springframework.beans.factory.support.BeanDefinitionValueResolver.resolveValueIfNecessary(BeanDefinitionValueResolver.java:135)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.applyPropertyValues(AbstractAutowireCapableBeanFactory.java:1725)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1474)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:606)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
-        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
-        at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1752)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1635)
-        at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913)
-        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
-        ... 26 common frames omitted
-Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'r2dbcEntityTemplate' defined in class path resource [br/tec/facilitaservicos/resultados/configuracao/R2dbcConfig.class]: Unsatisfied dependency expressed through method 'r2dbcEntityTemplate' parameter 0: Error creating bean with name 'connectionFactory' defined in class path resource [org/springframework/boot/autoconfigure/r2dbc/ConnectionFactoryConfigurations$PoolConfiguration$PooledConnectionFactoryConfiguration.class]: Failed to instantiate [io.r2dbc.pool.ConnectionPool]: Factory method 'connectionFactory' threw exception with message: URL jdbc:mysql://145.223.31.87:3306/conexao_de_sorte?serverTimezone=UTC&createDatabaseIfNotExist=true does not start with the r2dbc scheme
-        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
-        at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:546)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1375)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1205)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
-        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
-        at org.springframework.beans.factory.support.BeanDefinitionValueResolver.resolveReference(BeanDefinitionValueResolver.java:365)
-        ... 40 common frames omitted
-Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'connectionFactory' defined in class path resource [org/springframework/boot/autoconfigure/r2dbc/ConnectionFactoryConfigurations$PoolConfiguration$PooledConnectionFactoryConfiguration.class]: Failed to instantiate [io.r2dbc.pool.ConnectionPool]: Factory method 'connectionFactory' threw exception with message: URL jdbc:mysql://145.223.31.87:3306/conexao_de_sorte?serverTimezone=UTC&createDatabaseIfNotExist=true does not start with the r2dbc scheme
-        at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:657)
-        at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:645)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1375)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1205)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
-        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1690)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1635)
-        at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913)
-        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
-        ... 50 common frames omitted
-Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [io.r2dbc.pool.ConnectionPool]: Factory method 'connectionFactory' threw exception with message: URL jdbc:mysql://145.223.31.87:3306/conexao_de_sorte?serverTimezone=UTC&createDatabaseIfNotExist=true does not start with the r2dbc scheme
-        at org.springframework.beans.factory.support.SimpleInstantiationStrategy.lambda$instantiate$0(SimpleInstantiationStrategy.java:200)
-        at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiateWithFactoryMethod(SimpleInstantiationStrategy.java:89)
-        at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:169)
-        at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:653)
-        ... 63 common frames omitted
-Caused by: java.lang.IllegalArgumentException: URL jdbc:mysql://145.223.31.87:3306/conexao_de_sorte?serverTimezone=UTC&createDatabaseIfNotExist=true does not start with the r2dbc scheme
-        at io.r2dbc.spi.ConnectionUrlParser.validate(ConnectionUrlParser.java:54)
-        at io.r2dbc.spi.ConnectionUrlParser.parseQuery(ConnectionUrlParser.java:81)
-        at io.r2dbc.spi.ConnectionFactoryOptions.parse(ConnectionFactoryOptions.java:138)
-        at org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration$PropertiesR2dbcConnectionDetails.getConnectionFactoryOptions(R2dbcAutoConfiguration.java:75)
-        at org.springframework.boot.autoconfigure.r2dbc.ConnectionFactoryOptionsInitializer.initialize(ConnectionFactoryOptionsInitializer.java:51)
-        at org.springframework.boot.autoconfigure.r2dbc.ConnectionFactoryConfigurations.createConnectionFactory(ConnectionFactoryConfigurations.java:68)
-        at org.springframework.boot.autoconfigure.r2dbc.ConnectionFactoryConfigurations$PoolConfiguration$PooledConnectionFactoryConfiguration.connectionFactory(ConnectionFactoryConfigurations.java:102)
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
-        at java.base/java.lang.reflect.Method.invoke(Unknown Source)
-        at org.springframework.beans.factory.support.SimpleInstantiationStrategy.lambda$instantiate$0(SimpleInstantiationStrategy.java:172)
-        ... 66 common frames omitted
-2025-08-27T15:29:33-0300 � Iniciando aplicação Java
-Picked up JAVA_TOOL_OPTIONS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx1024m -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Dfile.encoding=UTF-8
+� 2. ANÁLISE DE LOGS DETALHADOS
+--------------------------------
+[INFO] Últimos 50 logs do runner...
+Sep 07 13:59:12 srv649924 runsvc.sh[3773942]: Runner listener exited with error code null
+Sep 07 13:59:12 srv649924 runsvc.sh[3773942]: Runner listener exit with undefined return code, re-launch runner in 5 seconds.
+Sep 07 13:59:17 srv649924 runsvc.sh[3773942]: Starting Runner listener with startup type: service
+Sep 07 13:59:17 srv649924 runsvc.sh[3773942]: Started listener process, pid: 3774865
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]: Unhandled exception. System.UnauthorizedAccessException: Access to the path '/opt/actions-runner/_diag/Runner_20250907-165919-utc.log' is denied.
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:  ---> System.IO.IOException: Permission denied
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    --- End of inner exception stack trace ---
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String path, OpenFlags flags, Int32 mode, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, UnixFileMode openPermissions, Int64& fileLength, UnixFileMode& filePermissions, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at System.IO.FileStream..ctor(String path, FileMode mode, FileAccess access, FileShare share, Int32 bufferSize)
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener.CreatePageLogWriter()
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener..ctor(String logFileDirectory, String logFilePrefix, Int32 pageSizeLimit, Int32 retentionDays)
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostContext..ctor(String hostType, String logFile)
+Sep 07 13:59:19 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Listener.Program.Main(String[] args)
+Sep 07 13:59:21 srv649924 runsvc.sh[3773942]: Runner listener exited with error code null
+Sep 07 13:59:21 srv649924 runsvc.sh[3773942]: Runner listener exit with undefined return code, re-launch runner in 5 seconds.
+Sep 07 13:59:26 srv649924 runsvc.sh[3773942]: Starting Runner listener with startup type: service
+Sep 07 13:59:26 srv649924 runsvc.sh[3773942]: Started listener process, pid: 3774873
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]: Unhandled exception. System.UnauthorizedAccessException: Access to the path '/opt/actions-runner/_diag/Runner_20250907-165927-utc.log' is denied.
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:  ---> System.IO.IOException: Permission denied
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    --- End of inner exception stack trace ---
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String path, OpenFlags flags, Int32 mode, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, UnixFileMode openPermissions, Int64& fileLength, UnixFileMode& filePermissions, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at System.IO.FileStream..ctor(String path, FileMode mode, FileAccess access, FileShare share, Int32 bufferSize)
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener.CreatePageLogWriter()
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener..ctor(String logFileDirectory, String logFilePrefix, Int32 pageSizeLimit, Int32 retentionDays)
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostContext..ctor(String hostType, String logFile)
+Sep 07 13:59:27 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Listener.Program.Main(String[] args)
+Sep 07 13:59:29 srv649924 runsvc.sh[3773942]: Runner listener exited with error code null
+Sep 07 13:59:29 srv649924 runsvc.sh[3773942]: Runner listener exit with undefined return code, re-launch runner in 5 seconds.
+Sep 07 13:59:34 srv649924 runsvc.sh[3773942]: Starting Runner listener with startup type: service
+Sep 07 13:59:34 srv649924 runsvc.sh[3773942]: Started listener process, pid: 3774892
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]: Unhandled exception. System.UnauthorizedAccessException: Access to the path '/opt/actions-runner/_diag/Runner_20250907-165936-utc.log' is denied.
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:  ---> System.IO.IOException: Permission denied
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    --- End of inner exception stack trace ---
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String path, OpenFlags flags, Int32 mode, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, UnixFileMode openPermissions, Int64& fileLength, UnixFileMode& filePermissions, Boolean failForSymlink, Boolean& wasSymlink, Func`4 createOpenException)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at System.IO.FileStream..ctor(String path, FileMode mode, FileAccess access, FileShare share, Int32 bufferSize)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener.CreatePageLogWriter()
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostTraceListener..ctor(String logFileDirectory, String logFilePrefix, Int32 pageSizeLimit, Int32 retentionDays)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Common.HostContext..ctor(String hostType, String logFile)
+Sep 07 13:59:36 srv649924 runsvc.sh[3773942]:    at GitHub.Runner.Listener.Program.Main(String[] args)
+Sep 07 13:59:38 srv649924 runsvc.sh[3773942]: Runner listener exited with error code null
+Sep 07 13:59:38 srv649924 runsvc.sh[3773942]: Runner listener exit with undefined return code, re-launch runner in 5 seconds.
+
+� 3. VERIFICAÇÃO DE DIRETÓRIOS E PERMISSÕES
+--------------------------------------------
+[INFO] Verificando diretório do runner...
+total 116704
+drwxr-xr-x 20 runner runner      4096 Sep  6 18:36 .
+drwxr-xr-x 24 root   root        4096 Aug 30 09:44 ..
+drwxr-xr-x  2 runner runner      4096 Sep  6 18:19 .cache
+-rw-rw-r--  1 runner runner       268 Aug 26 10:31 .credentials
+-rw-------  1 runner runner      1667 Aug 26 10:31 .credentials_rsaparams
+-rw-rw-r--  1 runner runner        13 Aug 26 10:31 .env
+-rw-rw-r--  1 runner runner        71 Aug 30 07:09 .path
+-rw-rw-r--  1 runner runner       411 Aug 26 10:31 .runner
+-rw-r--r--  1 runner runner       411 Sep  6 16:47 .runner_migrated
+-rw-r--r--  1 runner runner        78 Aug 26 10:31 .service
+drwxrwxr-x  4 runner runner      4096 Aug 30 07:09 _diag
+drwxr-xr-x  7 runner runner      4096 Aug 28 06:38 _work
+-rw-r--r--  1 runner runner 119330520 Aug 26 09:28 actions-runner-linux-x64-2.321.0.tar.gz
+drwxr-xr-x  4 runner runner     20480 Aug 26 10:31 bin
+drwxr-xr-x  6 runner runner      4096 Sep  7 06:51 conexao-de-sorte-backend-auditoria-compliance
+drwxr-xr-x  6 runner runner      4096 Sep  7 11:23 conexao-de-sorte-backend-batepapo
+drwxr-xr-x  6 runner runner      4096 Sep  7 08:34 conexao-de-sorte-backend-gateway
+drwxr-xr-x  6 runner runner      4096 Sep  7 09:32 conexao-de-sorte-backend-observabilidade
+drwxr-xr-x  5 runner runner      4096 Sep  6 18:36 conexao-de-sorte-backend-resultados
+drwxr-xr-x  5 runner runner      4096 Sep  6 18:33 conexao-de-sorte-frontend
+drwxr-xr-x  5 runner runner      4096 Sep  7 12:21 conexao-de-sorte-kafka-infraestrutura
+drwxr-xr-x  5 runner runner      4096 Sep  7 10:27 conexao-de-sorte-rabbitmq-infraestrutura
+drwxr-xr-x  5 runner runner      4096 Sep  7 02:37 conexao-de-sorte-redis-infraestrutura
+drwxr-xr-x  5 runner runner      4096 Sep  7 11:45 conexao-de-sorte-tracing-infraestrutura
+drwxr-xr-x  5 runner runner      4096 Sep  7 08:16 conexao-de-sorte-traefik-infraestrutura
+drwxr-xr-x  5 runner runner      4096 Sep  6 18:35 conexao-de-sorte-traefik-resultado
+drwxr-xr-x  5 runner runner      4096 Sep  6 18:35 conexao-de-sorte-traefik-resultados
+-rwxr-xr-x  1 runner runner      2458 Aug 13 13:45 config.sh
+-rwxr-xr-x  1 runner runner       646 Aug 13 13:45 env.sh
+drwxr-xr-x  6 runner runner      4096 Aug 13 13:46 externals
+-rw-r--r--  1 runner runner      1619 Aug 13 13:45 run-helper.cmd.template
+-rwxr-xr-x  1 runner runner      2663 Aug 13 13:45 run-helper.sh.template
+-rwxr-xr-x  1 runner runner      2535 Aug 13 13:45 run.sh
+-rwxr-xr-x  1 runner runner       532 Aug 26 10:31 runsvc.sh
+-rwxr-xr-x  1 runner runner        65 Aug 13 13:45 safe_sleep.sh
+-rwxr-xr-x  1 runner runner      6264 Aug 29 20:32 server-register-all.sh
+-rwxr-xr-x  1 runner runner      5274 Aug 26 10:31 svc.sh
+
+[INFO] Verificando permissões dos arquivos críticos...
+-rwxr-xr-x 1 runner runner 532 Aug 26 10:31 /opt/actions-runner/runsvc.sh
+-rw-r--r-- 1 runner runner 4832 Aug 13 13:45 /opt/actions-runner/bin/RunnerService.js
+-rwxr-xr-x 1 runner runner 99890080 Jul 15 12:38 /opt/actions-runner/externals/node20/bin/node
+
+� 4. VERIFICAÇÃO DE USUÁRIO E GRUPOS
+------------------------------------
+[INFO] Verificando usuário do runner...
+actions   577361  0.0  0.1 726188  8576 ?        Sl   Aug30   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+actions   577964  0.0  0.1 726188 13184 ?        Sl   Aug30   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions   578463  0.0  0.1 726188 10368 ?        Sl   Aug30   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3110647  0.0  0.1 727476 15616 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3111124  0.0  0.1 727476 15360 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3111519  0.0  0.1 727476 15744 ?        Sl   Sep06   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3111855  0.0  0.1 727476  8960 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3112203  0.0  0.1 727476 15488 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3112585  0.0  0.1 727476  8832 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296713  0.0  0.1 727476 16000 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296776  0.0  0.1 726188 14848 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296781  0.0  0.1 727476 15104 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296787  0.0  0.2 726188 23040 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296796  0.0  0.1 727476 15488 ?        Sl   06:04   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296811  0.0  0.2 727476 23680 ?        Sl   06:04   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296838  0.0  0.2 726188 16384 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296849  0.0  0.1 727476  8960 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296851  0.0  0.1 727476 16256 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296852  0.0  0.1 727476  8960 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296854  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296857  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296882  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296884  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3773942  0.7  0.5 859828 41472 ?        Sl   13:56   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+
+[INFO] Verificando grupos do usuário actions-runner...
+[WARN] Usuário actions-runner não encontrado
+
+� 5. TESTE DE CONECTIVIDADE
+----------------------------
+[INFO] Testando conectividade com GitHub...
+Status HTTP: 200
+Tempo: 0.492381s
+
+[INFO] Testando resolução DNS...
+Server:         127.0.0.53
+Address:        127.0.0.53#53
+
+Non-authoritative answer:
+Name:   github.com
+Address: 4.228.31.150
+
+
+� 6. VERIFICAÇÃO DE ESPAÇO EM DISCO
+-----------------------------------
+[INFO] Espaço disponível...
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        96G   60G   37G  63% /
+
+[INFO] Inodes disponíveis...
+Filesystem       Inodes  IUsed    IFree IUse% Mounted on
+/dev/sda1      12976128 902091 12074037    7% /
+
+⚙️ 7. VERIFICAÇÃO DE PROCESSOS
+------------------------------
+[INFO] Processos relacionados ao runner...
+actions   577358  0.0  0.0   7740  2176 ?        Ss   Aug30   0:00 /bin/bash /opt/actions-runner-results/runsvc.sh
+actions   577361  0.0  0.1 726188  8576 ?        Sl   Aug30   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+actions   577961  0.0  0.0   7740  2176 ?        Ss   Aug30   0:00 /bin/bash /opt/actions-runner-traefik-infrastructure/runsvc.sh
+actions   577964  0.0  0.1 726188 13184 ?        Sl   Aug30   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions   578188  0.0  1.1 274168188 94272 ?     Sl   Aug30   4:32 /opt/actions-runner-results/bin/Runner.Listener run --startuptype service
+actions   578460  0.0  0.0   7740  2304 ?        Ss   Aug30   0:00 /bin/bash /opt/actions-runner-redis-infrastructure/runsvc.sh
+actions   578463  0.0  0.1 726188 10368 ?        Sl   Aug30   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions   578653  0.0  1.1 274168224 94212 ?     Sl   Aug30   4:22 /opt/actions-runner-traefik-infrastructure/bin/Runner.Listener run --startuptype service
+actions   578804  0.0  1.2 274168732 99740 ?     Sl   Aug30   4:12 /opt/actions-runner-redis-infrastructure/bin/Runner.Listener run --startuptype service
+actions   961027  0.0  0.0    224     0 ?        Ss   Aug17   0:00 dumb-init -- serve -c serve.json -l 3000 --no-clipboard
+actions   961079  0.0  0.5 1138528 44868 ?       Ssl  Aug17   3:24 node /usr/local/bin/serve -c serve.json -l 3000 --no-clipboard
+actions   961148  0.0  0.0   2548   128 ?        Ss   Aug17   0:00 dumb-init -- /app/backend-init.sh
+actions   961180  0.3 10.0 3937596 813328 ?      Ssl  Aug17 108:41 java -server -Xms256m -Xmx1024m -XX:+UseG1GC -jar /app/app.jar
+runner   3110644  0.0  0.0   7740  3328 ?        Ss   Sep06   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-tracing-infraestrutura/runsvc.sh
+runner   3110647  0.0  0.1 727476 15616 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3110654  0.0  1.2 274166332 101788 ?    Sl   Sep06   0:39 /opt/actions-runner/conexao-de-sorte-tracing-infraestrutura/bin/Runner.Listener run --startuptype service
+runner   3111121  0.0  0.0   7740  3200 ?        Ss   Sep06   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-rabbitmq-infraestrutura/runsvc.sh
+runner   3111124  0.0  0.1 727476 15360 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3111144  0.0  1.3 274159960 112236 ?    Sl   Sep06   0:54 /opt/actions-runner/conexao-de-sorte-rabbitmq-infraestrutura/bin/Runner.Listener run --startuptype service
+runner   3111516  0.0  0.0   7740  3200 ?        Ss   Sep06   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-kafka-infraestrutura/runsvc.sh
+runner   3111519  0.0  0.1 727476 15744 ?        Sl   Sep06   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3111526  0.0  1.2 274166356 99964 ?     Sl   Sep06   0:45 /opt/actions-runner/conexao-de-sorte-kafka-infraestrutura/bin/Runner.Listener run --startuptype service
+runner   3111852  0.0  0.0   7740  3200 ?        Ss   Sep06   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-redis-infraestrutura/runsvc.sh
+runner   3111855  0.0  0.1 727476  8960 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3111874  0.0  1.2 274166260 103392 ?    Sl   Sep06   0:50 /opt/actions-runner/conexao-de-sorte-redis-infraestrutura/bin/Runner.Listener run --startuptype service
+runner   3112200  0.0  0.0   7740  3200 ?        Ss   Sep06   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-traefik-infraestrutura/runsvc.sh
+runner   3112203  0.0  0.1 727476 15488 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3112210  0.0  1.2 274166272 103396 ?    Sl   Sep06   0:36 /opt/actions-runner/conexao-de-sorte-traefik-infraestrutura/bin/Runner.Listener run --startuptype service
+runner   3112582  0.0  0.0   7740  3200 ?        Ss   Sep06   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-frontend/runsvc.sh
+runner   3112585  0.0  0.1 727476  8832 ?        Sl   Sep06   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3112592  0.0  1.2 274159940 104672 ?    Sl   Sep06   0:49 /opt/actions-runner/conexao-de-sorte-frontend/bin/Runner.Listener run --startuptype service
+runner   3296708  0.0  0.0   7740  3328 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-backend-gateway/runsvc.sh
+runner   3296713  0.0  0.1 727476 16000 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296720  0.1  1.4 274168660 115408 ?    Sl   06:04   0:46 /opt/actions-runner/conexao-de-sorte-backend-gateway/bin/Runner.Listener run --startuptype service
+actions  3296769  0.0  0.0   7740  3328 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-batepapo/runsvc.sh
+runner   3296774  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-backend-observabilidade/runsvc.sh
+actions  3296776  0.0  0.1 726188 14848 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296779  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-auth/runsvc.sh
+runner   3296781  0.0  0.1 727476 15104 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296787  0.0  0.2 726188 23040 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296789  0.0  0.0   7740  3328 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-backend-batepapo/runsvc.sh
+runner   3296795  0.0  0.0   7740  3328 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner/conexao-de-sorte-backend-auditoria-compliance/runsvc.sh
+runner   3296796  0.0  0.1 727476 15488 ?        Sl   06:04   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296811  0.0  0.2 727476 23680 ?        Sl   06:04   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296819  0.4  1.1 274166092 93440 ?     Sl   06:04   2:17 /opt/actions-runner-batepapo/bin/Runner.Listener run --startuptype service
+actions  3296826  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-scheduler/runsvc.sh
+actions  3296834  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-scheduler-extracoes/runsvc.sh
+actions  3296837  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-criptografia-kms/runsvc.sh
+actions  3296838  0.0  0.2 726188 16384 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296840  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-auditoria-compliance/runsvc.sh
+actions  3296844  0.0  0.0   7740  3328 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-notificacoes/runsvc.sh
+actions  3296849  0.0  0.1 727476  8960 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296850  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-observabilidade-diagnostico/runsvc.sh
+actions  3296851  0.0  0.1 727476 16256 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296852  0.0  0.1 727476  8960 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296854  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296857  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296864  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-criptografia/runsvc.sh
+actions  3296869  0.0  0.0   7740  3200 ?        Ss   06:04   0:00 /bin/bash /opt/actions-runner-observabilidade/runsvc.sh
+actions  3296882  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3296884  0.0  0.1 727476  8832 ?        Sl   06:04   0:00 ./externals/node20/bin/node ./bin/RunnerService.js
+runner   3296896  0.1  1.2 274169020 102984 ?    Sl   06:04   0:50 /opt/actions-runner/conexao-de-sorte-backend-observabilidade/bin/Runner.Listener run --startuptype service
+actions  3296910  0.2  1.4 274168616 117864 ?    Sl   06:04   1:07 /opt/actions-runner-criptografia-kms/bin/Runner.Listener run --startuptype service
+actions  3296911  0.2  1.4 274166512 120080 ?    Sl   06:04   1:12 /opt/actions-runner-auth/bin/Runner.Listener run --startuptype service
+actions  3296922  0.1  1.0 274166784 83876 ?     Sl   06:04   0:32 /opt/actions-runner-notificacoes/bin/Runner.Listener run --startuptype service
+runner   3296924  0.1  1.2 274166416 104712 ?    Sl   06:04   0:49 /opt/actions-runner/conexao-de-sorte-backend-batepapo/bin/Runner.Listener run --startuptype service
+runner   3296946  0.2  1.5 274168640 122468 ?    Sl   06:04   1:12 /opt/actions-runner/conexao-de-sorte-backend-auditoria-compliance/bin/Runner.Listener run --startuptype service
+actions  3296995  0.1  0.9 274166392 78296 ?     Sl   06:04   0:34 /opt/actions-runner-auditoria-compliance/bin/Runner.Listener run --startuptype service
+actions  3296996  0.1  1.0 274166672 82332 ?     Sl   06:04   0:35 /opt/actions-runner-observabilidade-diagnostico/bin/Runner.Listener run --startuptype service
+actions  3297010  0.1  0.9 274166568 80692 ?     Sl   06:04   0:33 /opt/actions-runner-observabilidade/bin/Runner.Listener run --startuptype service
+actions  3297011  0.1  1.0 274166224 88576 ?     Sl   06:04   0:35 /opt/actions-runner-criptografia/bin/Runner.Listener run --startuptype service
+actions  3297013  1.1  1.1 274166876 95132 ?     Sl   06:04   5:29 /opt/actions-runner-scheduler-extracoes/bin/Runner.Listener run --startuptype service
+actions  3630969  0.3  1.5 274168488 128976 ?    Sl   09:35   0:57 /opt/actions-runner-scheduler/bin/Runner.Listener run --startuptype service
+actions  3773935  0.0  0.0   7740  3456 ?        Ss   13:56   0:00 /bin/bash /opt/actions-runner/runsvc.sh
+actions  3773942  0.7  0.5 859828 41600 ?        Sl   13:56   0:01 ./externals/node20/bin/node ./bin/RunnerService.js
+actions  3774989  2.9  0.0    224     0 ?        Ss   13:59   0:00 dumb-init -- java -jar app.jar
+actions  3775058  108  0.7 2106980 63128 ?       Ssl  13:59   0:05 java -jar app.jar
+actions  3775085 51.0  0.5 273477564 43392 ?     Sl   13:59   0:01 /opt/actions-runner/bin/Runner.Listener run --startuptype service
+
+� 8. APLICANDO CORREÇÕES AUTOMÁTICAS
+------------------------------------
+[INFO] Parando o serviço do runner...
+[INFO] Corrigindo permissões do diretório...
+chown: invalid user: ‘actions-runner:actions-runner’
