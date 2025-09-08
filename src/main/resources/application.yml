@@ -4,6 +4,7 @@ spring:
     
   profiles:
     default: prod
+    active: prod
     # Perfil de produção; integração com Azure Key Vault via variáveis/Key Vault
   
   main:
@@ -39,10 +40,13 @@ spring:
     password: ${conexao-de-sorte-database-password:}
     pool:
       enabled: true
-      initial-size: 10
-      max-size: 50
+      initial-size: 1
+      max-size: 15
       max-idle-time: 30m
-      max-acquire-time: 60s
+      max-acquire-time: 15s
+      max-create-connection-time: 10s
+      max-life-time: 60m
+      validation-query: SELECT 1
       
   # Flyway para migrations (usa JDBC)
   flyway:
