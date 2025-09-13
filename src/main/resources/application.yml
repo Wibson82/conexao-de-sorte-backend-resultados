@@ -1,36 +1,40 @@
 spring:
+  config:
+    import: optional:configtree:/run/secrets/
   application:
-    name: resultados
+    name: conexao-resultados
     
   profiles:
     default: prod
-    active: prod
-    # Perfil de produção; integração com Azure Key Vault via variáveis/Key Vault
   
   main:
     allow-bean-definition-overriding: true
   jackson:
     time-zone: America/Sao_Paulo
     locale: pt_BR
-  
-  # Config import para Azure Key Vault secrets
-  config:
-    import:
-      - optional:configtree:/etc/secrets/azure/
-      - optional:configtree:/mnt/secrets/
-      - optional:file:./secrets.properties
       
-  # Azure Key Vault (padrão simplificado)
+  # Azure Key Vault (configuração base)
   cloud:
     azure:
       keyvault:
         secret:
           enabled: ${AZURE_KEYVAULT_ENABLED:false}
-          endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
-      profile:
-        tenant-id: ${AZURE_TENANT_ID:}
-        subscription-id: ${AZURE_SUBSCRIPTION_ID:}
-        client-id: ${AZURE_CLIENT_ID:}
+  
+  # Redis para cache (Resultados usa DB 2)
+  data:
+    redis:
+      host: ${conexao-de-sorte-redis-host:conexao-redis}
+      port: ${conexao-de-sorte-redis-port:6379}
+      password: ${conexao-de-sorte-redis-password:senha_teste}
+      database: ${conexao-de-sorte-redis-database:2}  # Resultados = DB 2
+      timeout: 2000ms
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+          max-wait: 3000ms
 
   # R2DBC - define defaults seguros para Docker com segredos Azure Key Vault
   r2dbc:
@@ -60,7 +64,7 @@ spring:
     redis:
       host: ${conexao-de-sorte-redis-host:conexao-redis}
       port: ${conexao-de-sorte-redis-port:6379}
-      password: ${conexao-de-sorte-redis-password:}
+      password: ${conexao-de-sorte-redis-password:senha_teste}
       timeout: 2000ms
       lettuce:
         pool:
@@ -74,11 +78,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:http://localhost:8081/.well-known/jwks.json}
-          issuer-uri: ${conexao-de-sorte-jwt-issuer:https://auth.conexaodesorte.com}
+          jwk-set-uri: ${conexao-de-sorte-jwt-jwks-uri:https://auth.conexaodesorte.com.br/.well-known/jwks.json}
+          issuer-uri: ${conexao-de-sorte-jwt-issuer:https://auth.conexaodesorte.com.br}
 
 server:
-  port: ${SERVER_PORT:8083}
+  port: ${conexao-de-sorte-server-port:8092}  # Porta específica Resultados
   shutdown: graceful
   
   # SSL/TLS desabilitado - Traefik gerencia terminação SSL
@@ -246,7 +250,7 @@ spring:
   r2dbc:
     url: ${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
     username: ${conexao-de-sorte-database-username:}
-    password: ${conexao-de-sorte-database-password:}
+    password: ${conexao-de-sorte-redis-password:senha_teste}
     pool:
       initial-size: 20
       max-size: 100
@@ -254,7 +258,7 @@ spring:
   flyway:
     url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
     user: ${conexao-de-sorte-database-username:}
-    password: ${conexao-de-sorte-database-password:}
+    password: ${conexao-de-sorte-redis-password:senha_teste}
     
 server:
   port: 8083
