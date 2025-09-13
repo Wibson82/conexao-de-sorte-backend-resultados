@@ -59,19 +59,7 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: true
     
-  # Cache reativo (Redis) - segredos Azure Key Vault
-  data:
-    redis:
-      host: ${conexao-de-sorte-redis-host:conexao-redis}
-      port: ${conexao-de-sorte-redis-port:6379}
-      password: ${conexao-de-sorte-redis-password:senha_teste}
-      timeout: 2000ms
-      lettuce:
-        pool:
-          enabled: true
-          max-total: 20
-          max-idle: 8
-          min-idle: 2
+  # Cache reativo (Redis) configurado acima na linha 24
           
   # Security JWT
   security:
