@@ -302,11 +302,13 @@
                 <version>3.2.5</version>
                 <configuration>
                     <systemPropertyVariables>
-                        <spring.profiles.active>azure</spring.profiles.active>
+                        <spring.profiles.active>test</spring.profiles.active>
                     </systemPropertyVariables>
                     <argLine>
+                        ${argLine}
                         -Xmx1g
                         -XX:+UseG1GC
+                        -XX:+EnableDynamicAgentLoading
                         -Djava.awt.headless=true
                         -Dtestcontainers.reuse.enable=false
                         --add-opens=java.base/sun.misc=ALL-UNNAMED

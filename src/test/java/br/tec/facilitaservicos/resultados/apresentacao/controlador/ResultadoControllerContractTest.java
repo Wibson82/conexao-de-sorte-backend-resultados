@@ -13,6 +13,7 @@ import br.tec.facilitaservicos.resultados.apresentacao.dto.RankingDto;
 import br.tec.facilitaservicos.resultados.apresentacao.dto.ResultadoDto;
 import br.tec.facilitaservicos.resultados.aplicacao.servico.ResultadoService;
 import br.tec.facilitaservicos.resultados.config.WebFluxTestConfig;
+import br.tec.facilitaservicos.resultados.config.SegurancaTesteConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -24,13 +25,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@ActiveProfiles("test")
 @WebFluxTest(controllers = ResultadoController.class)
 @AutoConfigureWebTestClient
-@Import({WebFluxTestConfig.class, ResultadoControllerContractTest.TestConfig.class})
+@Import({WebFluxTestConfig.class, SegurancaTesteConfig.class, ResultadoControllerContractTest.TestConfig.class})
 class ResultadoControllerContractTest {
 
     @Autowired

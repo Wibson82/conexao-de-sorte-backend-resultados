@@ -1,0 +1,27 @@
+spring:
+  r2dbc:
+    url: ${RESULTADOS_R2DBC_URL:r2dbc:mysql://localhost:3306/test}
+    username: ${RESULTADOS_DB_USER:test}
+    password: ${RESULTADOS_DB_PASS:test}
+  data:
+    redis:
+      repositories:
+        enabled: false
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+
+# Desabilitar Azure Key Vault em testes
+azure:
+  keyvault:
+    enabled: false
+
+# Logging minimal para testes
+logging:
+  level:
+    org.springframework.security: WARN
+    org.springframework.boot.autoconfigure: WARN
+    org.testcontainers: WARN
+    io.r2dbc: WARN
