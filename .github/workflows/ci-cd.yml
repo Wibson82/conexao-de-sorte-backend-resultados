@@ -353,13 +353,13 @@ jobs:
               --name "$SERVICE_NAME" \
               --image "$IMAGE" \
               --network "conexao-network-swarm" \
-              --publish 8092:8080 \
+              --publish 8082:8082 \
               --replicas 1 \
               --secret "resultados_redis_password" \
               --secret "resultados_jwt_secret" \
               --env "SPRING_PROFILES_ACTIVE=prod,azure" \
               --env "TZ=America/Sao_Paulo" \
-              --env "SERVER_PORT=8080" \
+              --env "SERVER_PORT=8082" \
               --env "SPRING_DATA_REDIS_HOST=${REDIS_HOST}" \
               --env "SPRING_DATA_REDIS_PORT=${REDIS_PORT}" \
               --env "SPRING_DATA_REDIS_DATABASE=${REDIS_DATABASE}" \
@@ -374,24 +374,24 @@ jobs:
               --restart-delay "30s" \
               --restart-max-attempts "2" \
               --restart-window "120s" \
-              --health-cmd 'curl -f http://localhost:8080/actuator/health' \
+              --health-cmd 'curl -f http://localhost:8082/actuator/health' \
               --health-interval "30s" \
               --health-timeout "10s" \
-              --health-retries "3" \
+              --health-retries "5" \
               --health-start-period "60s" \
               --label "traefik.enable=true" \
               --label "traefik.docker.network=conexao-network-swarm" \
               --label "traefik.http.routers.resultados.rule=Host(\`resultados.conexaodesorte.com.br\`)" \
               --label "traefik.http.routers.resultados.entrypoints=websecure" \
               --label "traefik.http.routers.resultados.tls.certresolver=letsencrypt" \
-              --label "traefik.http.services.resultados.loadbalancer.server.port=8080" \
+              --label "traefik.http.services.resultados.loadbalancer.server.port=8082" \
               --detach=false
           fi
 
           # Verificar se deploy foi bem-sucedido com health check robusto
           set -euo pipefail
-          INTERNAL_PORT=8080
-          MAX_ATTEMPTS=20
+          INTERNAL_PORT=8082
+          MAX_ATTEMPTS=5
           INTERVAL=10
 
           echo "🔍 Verificando saúde do serviço $SERVICE_NAME..."
