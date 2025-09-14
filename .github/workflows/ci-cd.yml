@@ -135,23 +135,23 @@ jobs:
             echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
             exit 1
           fi
-          
+
           echo "Loading secrets from Azure Key Vault: $VAULT" >&2
-          
+
           # Resultados secrets
           REDIS_PASS=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-redis-password --query value -o tsv 2>/dev/null)
           JWT_SECRET=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-jwt-secret --query value -o tsv 2>/dev/null)
-          
+
           # Validar secrets obrigatórios
           if [ -z "$REDIS_PASS" ] || [ -z "$JWT_SECRET" ]; then
             echo "ERROR: Required Resultados secrets not found in Azure Key Vault $VAULT" >&2
             exit 1
           fi
-          
+
           # Mascarar secrets nos logs
           echo "::add-mask::$REDIS_PASS"
           echo "::add-mask::$JWT_SECRET"
-          
+
           # Salvar em arquivos temporários
           printf "%s" "$REDIS_PASS" > redis_pass.txt
           printf "%s" "$JWT_SECRET" > jwt_secret.txt
@@ -173,7 +173,7 @@ jobs:
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           TIMESTAMP=$(date +'%d-%m-%Y-%H-%M')
           IMAGE=ghcr.io/$REPO_LOWER/conexao-de-sorte-backend-resultados:${TIMESTAMP}
-          
+
           # Build com secrets
           docker buildx build \
             --tag "$IMAGE" \
@@ -183,10 +183,10 @@ jobs:
             --secret id=redis_password,src=redis_pass.txt \
             --secret id=jwt_secret,src=jwt_secret.txt \
             --file Dockerfile .
-          
+
           # Limpar arquivos de secrets
           rm -f redis_pass.txt jwt_secret.txt
-          
+
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
 # ----------------------------------------------------------------------
@@ -219,6 +219,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: read
     steps:
       - name: Login GHCR (Self-hosted)
         uses: docker/login-action@v3
@@ -227,8 +228,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configurar Docker para acesso GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Pull imagem do GHCR
-        run: docker pull "${{ needs.build-image.outputs.image }}"
+        run: |
+          echo "🔍 Tentando baixar a imagem: ${{ needs.build-image.outputs.image }}"
+          docker pull "${{ needs.build-image.outputs.image }}" || {
+            echo "⚠️ Erro no pull direto, tentando método alternativo..."
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            TIMESTAMP=$(echo "${{ needs.build-image.outputs.image }}" | awk -F':' '{print $2}')
+            IMAGE="ghcr.io/${REPO_LOWER}:${TIMESTAMP}"
+            echo "🔄 Tentando imagem alternativa: ${IMAGE}"
+            docker pull "${IMAGE}" || {
+              echo "❌ Falha no pull da imagem. Verificando repositórios disponíveis:"
+              curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/user/packages?package_type=container | jq '.[].name'
+            }
+          }
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -249,15 +266,15 @@ jobs:
             echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
             exit 1
           fi
-          
+
           echo "🔐 Loading all secrets from Azure Key Vault: $VAULT" >&2
-          
+
           # Função para obter secret com fallback gracioso
           get_secret() {
             local secret_name="$1"
             local fallback_value="$2"
             local secret_value
-            
+
             secret_value=$(az keyvault secret show --vault-name "$VAULT" --name "$secret_name" --query value -o tsv 2>/dev/null || echo "")
             if [ -z "$secret_value" ]; then
               if [ -n "$fallback_value" ]; then
@@ -272,23 +289,23 @@ jobs:
               echo "$secret_value"
             fi
           }
-          
+
           # Carregar segredos com fallbacks seguros
           REDIS_HOST=$(get_secret "conexao-de-sorte-redis-host" "localhost")
           REDIS_PORT=$(get_secret "conexao-de-sorte-redis-port" "6379")
           REDIS_PASSWORD=$(get_secret "conexao-de-sorte-redis-password" "")
           REDIS_DATABASE=$(get_secret "conexao-de-sorte-redis-database" "9")
-          
+
           JWT_SECRET=$(get_secret "conexao-de-sorte-jwt-secret" "")
           JWT_ISSUER=$(get_secret "conexao-de-sorte-jwt-issuer" "https://conexaodesorte.com.br")
-          
+
           CORS_ALLOWED_ORIGINS=$(get_secret "conexao-de-sorte-cors-allowed-origins" "https://conexaodesorte.com.br")
           CORS_ALLOW_CREDENTIALS=$(get_secret "conexao-de-sorte-cors-allow-credentials" "false")
-          
+
           # Criar/atualizar Docker secrets
           printf "%s" "$REDIS_PASSWORD" | docker secret create resultados_redis_password - 2>/dev/null || docker secret update resultados_redis_password -
           printf "%s" "$JWT_SECRET" | docker secret create resultados_jwt_secret - 2>/dev/null || docker secret update resultados_jwt_secret -
-          
+
           # Salvar variáveis de ambiente para o próximo step
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
           echo "REDIS_PORT=$REDIS_PORT" >> $GITHUB_ENV
@@ -387,7 +404,7 @@ jobs:
           # Loop de verificação
           for i in $(seq 1 $MAX_ATTEMPTS); do
               echo "⏳ Verificação de saúde $i/$MAX_ATTEMPTS..."
-              
+
               replicas=$(docker service ls --filter name="$SERVICE_NAME" --format '{{.Replicas}}')
               if [[ "$replicas" == "1/1" ]]; then
                   echo "✅ Serviço $SERVICE_NAME tem 1/1 réplicas em execução."
@@ -403,7 +420,7 @@ jobs:
               else
                   echo "⏳ Serviço $SERVICE_NAME ainda não está com 1/1 réplicas. Status: $replicas"
               fi
-              
+
               sleep $INTERVAL
           done
 
