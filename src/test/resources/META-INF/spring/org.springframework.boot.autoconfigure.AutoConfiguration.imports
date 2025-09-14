@@ -1,0 +1,5 @@
+# Arquivo de configuração para Auto-Configuration no Spring Boot 3.x
+# Usado pelo ConfigtreeSecretsIntegrationTest para fornecer R2dbcProperties
+# mesmo quando o ConfigTree não está disponível em ambiente de teste
+
+br.tec.facilitaservicos.resultados.configuracao.TestConfigtreeSecretsAutoConfiguration

@@ -1,14 +1,13 @@
 package br.tec.facilitaservicos.resultados.aplicacao.mapper;
 
-import br.tec.facilitaservicos.resultados.apresentacao.dto.ResultadoDto;
-import br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc;
-import org.junit.jupiter.api.Test;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
+
+import br.tec.facilitaservicos.resultados.apresentacao.dto.ResultadoDto;
+import br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc;
 
 class ResultadoMapperTest {
 
@@ -23,7 +22,7 @@ class ResultadoMapperTest {
                 .soma("28")
                 .dataResultado(LocalDate.now())
                 .build();
-        
+
         // Definir campos de auditoria manualmente para o teste
         entidade.setCriadoEm(LocalDateTime.now());
         entidade.setAtualizadoEm(LocalDateTime.now());

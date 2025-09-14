@@ -21,15 +21,15 @@
     <properties>
         <java.version>24</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        
+
         <!-- Dependências para documentação -->
         <springdoc.version>2.8.11</springdoc.version>
         <logstash.version>8.1</logstash.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
-        
+
         <!-- Testcontainers -->
         <testcontainers.version>1.21.3</testcontainers.version>
-        
+
     </properties>
 
     <dependencyManagement>
@@ -154,7 +154,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
-        
+
 
         <!-- Cache reativo -->
         <dependency>
@@ -422,7 +422,6 @@
             <plugin>
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-maven-plugin</artifactId>
-                <version>10.21.0</version>
                 <configuration>
                     <driver>com.mysql.cj.jdbc.Driver</driver>
                     <locations>

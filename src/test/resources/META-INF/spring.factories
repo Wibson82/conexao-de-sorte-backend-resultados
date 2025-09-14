@@ -1,0 +1,4 @@
+# Esse arquivo está obsoleto no Spring Boot 3.x e foi substituído por:
+# META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+#
+# Mantido apenas para referência histórica
