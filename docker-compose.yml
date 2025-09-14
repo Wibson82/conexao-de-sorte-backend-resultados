@@ -2,12 +2,7 @@ version: '3.9'
 
 services:
   resultados:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    container_name: conexao-resultados
-    ports:
-      - "8082:8082"
+    image: ${RESULTADOS_IMAGE:-ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest}
     environment:
       SPRING_PROFILES_ACTIVE: "prod"
       RESULTADOS_LOG_LEVEL: "INFO"
@@ -15,13 +10,19 @@ services:
       - conexao-network-swarm
     volumes:
       - ./logs:/app/logs
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=conexao-network-swarm"
+      - "traefik.http.routers.resultados.rule=Host(`api.conexaodesorte.com.br`) && PathPrefix(`/rest/v1/resultados`)"
+      - "traefik.http.routers.resultados.entrypoints=websecure"
+      - "traefik.http.routers.resultados.tls.certresolver=letsencrypt"
+      - "traefik.http.services.resultados.loadbalancer.server.port=8082"
 
 volumes:
   resultados_data:
