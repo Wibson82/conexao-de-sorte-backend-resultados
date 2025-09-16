@@ -9,19 +9,25 @@ services:
       - conexao-network-swarm
     volumes:
       - ./logs:/app/logs
+    ports:
+      - "8083:8083"  # Usar porta 8083 para evitar conflito com notifications (8082)
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    environment:
+      SPRING_PROFILES_ACTIVE: "prod"
+      RESULTADOS_LOG_LEVEL: "INFO"
+      SERVER_PORT: 8083  # Configurar porta interna como 8083
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=conexao-network-swarm"
       - "traefik.http.routers.resultados.rule=Host(`api.conexaodesorte.com.br`) && PathPrefix(`/rest/v1/resultados`)"
       - "traefik.http.routers.resultados.entrypoints=websecure"
       - "traefik.http.routers.resultados.tls.certresolver=letsencrypt"
-      - "traefik.http.services.resultados.loadbalancer.server.port=8082"
+      - "traefik.http.services.resultados.loadbalancer.server.port=8083"
 
 volumes:
   resultados_data:
