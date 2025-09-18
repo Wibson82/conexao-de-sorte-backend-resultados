@@ -21,13 +21,27 @@ services:
       SPRING_PROFILES_ACTIVE: "prod"
       RESULTADOS_LOG_LEVEL: "INFO"
       SERVER_PORT: 8083  # Configurar porta interna como 8083
+    # ==========================================================================
+    # 🏷️ LABELS PARA INTEGRAÇÃO COM GATEWAY - NOVO PADRÃO
+    # ==========================================================================
     labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=conexao-network-swarm"
-      - "traefik.http.routers.resultados.rule=Host(`api.conexaodesorte.com.br`) && PathPrefix(`/rest/v1/resultados`)"
-      - "traefik.http.routers.resultados.entrypoints=websecure"
-      - "traefik.http.routers.resultados.tls.certresolver=letsencrypt"
-      - "traefik.http.services.resultados.loadbalancer.server.port=8083"
+      # Habilitar descoberta pelo Gateway (não mais diretamente pelo Traefik)
+      - "traefik.enable=false"  # Gateway será o ponto de entrada
+      - "gateway.enable=true"   # Descoberta pelo Gateway
+      - "gateway.service.name=conexao-resultados"
+      - "gateway.service.port=8083"
+      - "gateway.service.path=/rest/resultados"
+      - "gateway.health.path=/actuator/health"
+
+      # Network para comunicação interna
+      - "com.docker.network.name=conexao-network-swarm"
+
+      # Metadata do serviço
+      - "org.opencontainers.image.title=Conexão de Sorte - Resultados"
+      - "org.opencontainers.image.description=Microserviço de resultados e loterias"
+      - "org.opencontainers.image.version=1.0.0"
+      - "microservice.type=business"
+      - "microservice.category=results"
 
 volumes:
   resultados_data:
