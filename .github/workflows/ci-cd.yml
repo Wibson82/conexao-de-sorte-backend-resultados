@@ -49,9 +49,9 @@ jobs:
           curl -s "https://get.sdkman.io" | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           
-          # Install Java 25 LTS (Temurin - Eclipse Foundation)
-          sdk install java 25-tem
-          sdk default java 25-tem
+          # Install Java 25 LTS (Azul Zulu - OpenJDK)
+          sdk install java 25-zulu
+          sdk default java 25-zulu
           
           # Verify installation
           java -version
