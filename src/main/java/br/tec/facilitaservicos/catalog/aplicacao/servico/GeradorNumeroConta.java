@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Serviço reativo para geração de números de conta únicos.
- * Migrado de backend-original-2 com melhorias para Java 24 + WebFlux.
+ * Migrado de backend-original-2 com melhorias para Java 25 LTS + WebFlux.
  * 
  * Algoritmo:
  * - Prefixo baseado em modalidade

@@ -66,7 +66,7 @@ sudo apt update
 sudo apt install -y docker.io docker-compose
 sudo usermod -aG docker $USER
 
-# Java 24 (para builds locais se necessário)
+# Java 25 LTS (para builds locais se necessário)
 wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo apt-key add -
 echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
 sudo apt update
@@ -156,7 +156,7 @@ gh run view <RUN_ID> --repo Wibson82/conexao-de-sorte-backend-resultados
 - [ ] Runner registrado com labels corretos
 - [ ] Runner aparece como "Online" no GitHub
 - [ ] Docker instalado e funcionando
-- [ ] Java 24 instalado
+- [ ] Java 25 LTS instalado
 - [ ] Azure CLI instalado
 - [ ] Secrets do Azure configurados no GitHub
 - [ ] Workflow executado com sucesso

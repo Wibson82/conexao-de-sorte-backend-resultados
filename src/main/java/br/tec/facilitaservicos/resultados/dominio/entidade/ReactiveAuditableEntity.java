@@ -13,7 +13,7 @@ import jakarta.validation.constraints.NotNull;
  * Entidade base reativa para auditoria automática.
  * Fornece campos de criação e modificação para entidades R2DBC.
  * 
- * Compatível com Spring Boot 3.5.5 e Java 24.
+ * Compatível com Spring Boot 3.5.5 e Java 25 LTS.
  * 
  * @author Sistema de Migração R2DBC
  * @version 1.0

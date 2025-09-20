@@ -19,7 +19,7 @@
     <description>Microserviço consolidado de resultados de loteria e catálogo de itens com Spring WebFlux e R2DBC</description>
 
     <properties>
-        <java.version>24</java.version>
+        <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Dependências para documentação -->
@@ -360,7 +360,7 @@
                 </executions>
             </plugin>
 
-            <!-- Checkstyle - Melhor compatibilidade com Java 24 -->
+            <!-- Checkstyle - Melhor compatibilidade com Java 25 LTS -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
@@ -390,7 +390,7 @@
                     <rules>
                         <requireJavaVersion>
                             <version>[24,)</version>
-                            <message>🚫 DOWNGRADE BLOCKED: Java 24+ required, found ${java.version}</message>
+                            <message>🚫 DOWNGRADE BLOCKED: Java 25 LTS+ required, found ${java.version}</message>
                         </requireJavaVersion>
                         <requireMavenVersion>
                             <version>[3.9.0,)</version>

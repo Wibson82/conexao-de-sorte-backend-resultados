@@ -7,7 +7,7 @@
 ## 🎯 **METADADOS DO MICROSERVIÇO**
 - **Nome:** conexao-de-sorte-backend-resultados
 - **Responsabilidade:** Resultados de loteria, estatísticas, rankings
-- **Tecnologias:** Spring Boot 3.5.5, WebFlux, R2DBC, Java 24
+- **Tecnologias:** Spring Boot 3.5.5, WebFlux, R2DBC, Java 25 LTS
 - **Porta:** 8082
 - **Banco de Dados:** `conexao_sorte_resultados` (novo, dedicado)
 - **Última Atualização:** 2025-01-17

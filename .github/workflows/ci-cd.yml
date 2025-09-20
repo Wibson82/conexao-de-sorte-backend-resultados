@@ -41,7 +41,25 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 python3-yaml jq openjdk-24-jdk
+          sudo apt-get install -y python3 python3-yaml jq curl zip unzip
+          
+      - name: Install SDKMAN! and Java 25 LTS
+        run: |
+          # Install SDKMAN!
+          curl -s "https://get.sdkman.io" | bash
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          
+          # Install Java 25 LTS (Temurin - Eclipse Foundation)
+          sdk install java 25-tem
+          sdk default java 25-tem
+          
+          # Verify installation
+          java -version
+          javac -version
+          
+          # Setup environment for subsequent steps
+          echo "SDKMAN_DIR=$HOME/.sdkman" >> $GITHUB_ENV
+          echo "$HOME/.sdkman/bin" >> $GITHUB_PATH
 
       - name: Validate Docker Compose
         run: |
@@ -97,6 +115,9 @@ jobs:
 
       - name: Validate Maven Project
         run: |
+          # Setup SDKMAN! environment
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          
           if [ -f "pom.xml" ]; then
             echo "✅ Projeto Maven detectado"
             mvn validate
@@ -135,7 +156,23 @@ jobs:
 
       - name: Validation completed
         run: |
+          # Setup SDKMAN! environment for validation
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
           echo "✅ Validação concluída - pronto para deploy"
+          echo "📋 Java version check:"
+          java -version
+          
+      - name: 🧪 Test Java 25 LTS Features
+        run: |
+          # Setup SDKMAN! environment
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          
+          # Compilar e executar teste Java 25
+          echo "🧪 Compilando e executando teste Java 25 LTS..."
+          javac TestJava25.java
+          java TestJava25
+          
+          echo "✅ Teste Java 25 LTS concluído com sucesso!"
 
   deploy-selfhosted:
     needs: validate-and-build

@@ -36,7 +36,7 @@ Microserviço **100% reativo** para consulta de resultados de loteria, construí
 
 ## 🛠️ Stack Tecnológica
 
-- **Java 24** - Linguagem principal
+- **Java 25 LTS** - Linguagem principal
 - **Spring Boot 3.5+** - Framework base
 - **Spring WebFlux** - Programação reativa
 - **Spring Security** - Segurança JWT
@@ -51,7 +51,7 @@ Microserviço **100% reativo** para consulta de resultados de loteria, construí
 
 ### Pré-requisitos
 
-- Java 24+
+- Java 25 LTS+
 - Docker e Docker Compose
 - Maven 3.9+
 
@@ -250,5 +250,5 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para de
 ---
 
 **📊 Conexão de Sorte Results Microservice**  
-*Sistema de Migração R2DBC v1.0 - Powered by Spring Boot 3.5+ & Java 24*  
+*Sistema de Migração R2DBC v1.0 - Powered by Spring Boot 3.5+ & Java 25 LTS*  
 *Built with ❤️ by the Conexão de Sorte Team*

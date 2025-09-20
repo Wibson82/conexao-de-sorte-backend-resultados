@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 
 /**
  * Serviço reativo para validação de números de conta.
- * Migrado de backend-original-2 com melhorias para Java 24 + WebFlux.
+ * Migrado de backend-original-2 com melhorias para Java 25 LTS + WebFlux.
  * 
  * Valida:
  * - Formato do número

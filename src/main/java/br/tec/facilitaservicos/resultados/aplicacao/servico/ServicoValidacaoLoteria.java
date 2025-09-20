@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 /**
  * Interface reativa para serviços de validação de loterias.
- * Migrado de backend-original-2 para Spring WebFlux + Java 24.
+ * Migrado de backend-original-2 para Spring WebFlux + Java 25 LTS.
  */
 public interface ServicoValidacaoLoteria {
 

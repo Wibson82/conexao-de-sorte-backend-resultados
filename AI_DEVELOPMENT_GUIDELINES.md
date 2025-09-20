@@ -159,7 +159,7 @@ Testcontainers: Para testes de integração
 
 ### Containerização
 ```dockerfile
-FROM eclipse-temurin:24-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 # Multi-stage build obrigatório
 # Non-root user
 # Health checks configurados
@@ -310,7 +310,7 @@ Rate Limit: Por usuário/IP
 ## 🔄 INTEGRAÇÃO CONTÍNUA
 
 ### Pipeline Obrigatório
-1. **Compile** - Java 24
+1. **Compile** - Java 25 LTS
 2. **Test** - Unitários + Integração
 3. **Quality Gate** - SonarQube
 4. **Security Scan** - OWASP, Snyk
