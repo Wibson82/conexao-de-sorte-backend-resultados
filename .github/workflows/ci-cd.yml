@@ -1,4 +1,4 @@
-name: "🎯 Resultados – CI/CD Pipeline"
+name: "🎯 Resultados Backend – CI/CD Pipeline"
 
 on:
   push:
@@ -6,35 +6,408 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Destino do deploy"
-        required: false
-        default: "production"
-        type: choice
-        options: [ staging, production ]
 
-# ----------------------------------------------------------------------
-# PARÂMETROS GERAIS
-# ----------------------------------------------------------------------
-
-env:
-  SERVICE_NAME: resultados
-  TZ: America/Sao_Paulo
-
+# Controle de concorrência para evitar execuções simultâneas
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-# ----------------------------------------------------------------------
-# JOB 1 ▸ VALIDAÇÃO DO WORKSPACE
-# ----------------------------------------------------------------------
+# Variáveis de ambiente global
+env:
+  SERVICE_NAME: resultados-backend
+  STACK_NAME: conexao-resultados
+  DOCKER_NETWORK_NAME: conexao-network-swarm
+
+permissions:
+  id-token: write    # Necessário para OIDC com Azure (azure/login@v2)
+  contents: read     # Necessário para checkout em jobs
 
 jobs:
-  validate-environment:
+  validate-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      has_keyvault: ${{ steps.check_secrets.outputs.has_keyvault }}
+      has_azure_creds: ${{ steps.check_secrets.outputs.has_azure_creds }}
     steps:
-      - uses: actions/checkout@v4
-      # REMOVIDO: Azure CLI não deve ser usado em produção
-      # Docker Secrets são sincronizados pela infraestrutura-core
+      - name: Checkout
+        uses: actions/checkout@v4.3.0
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-yaml jq openjdk-24-jdk
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose -f docker-compose.yml config -q
+          echo "✅ Docker Compose syntax is valid"
+
+      - name: Security Validation - No Hardcoded Passwords
+        run: |
+          # Verificar se não há hardcoded passwords
+          if grep -r "password.*:" docker-compose.yml pom.xml | grep -v "\${" | grep -v "#" | grep -v "external:"; then
+            echo "❌ Found potential hardcoded passwords"
+            exit 1
+          else
+            echo "✅ No hardcoded passwords found"
+          fi
+
+      - name: 🔎 Validar OIDC Azure
+        id: check_secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
+          AZURE_KEYVAULT_ENDPOINT: ${{ secrets.AZURE_KEYVAULT_ENDPOINT }}
+        run: |
+          set -Eeuo pipefail
+          missing=()
+          for var in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [[ -z "${!var:-}" ]]; then
+              missing+=("$var")
+            fi
+          done
+          if (( ${#missing[@]} )); then
+            printf '❌ GitHub Secrets obrigatórios ausentes: %s\n' "${missing[*]}"
+            exit 1
+          fi
+          echo "✅ Identificadores Azure configurados via secrets"
+
+          # Key Vault é opcional
+          if [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
+            echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_keyvault=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ -z "${AZURE_KEYVAULT_ENDPOINT:-}" ]]; then
+            echo 'ℹ️ AZURE_KEYVAULT_ENDPOINT não definido (usando endpoint padrão)'
+          else
+            echo '✅ Endpoint customizado definido'
+          fi
+
+          echo "has_azure_creds=true" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Maven Project
+        run: |
+          if [ -f "pom.xml" ]; then
+            echo "✅ Projeto Maven detectado"
+            mvn validate
+            echo "✅ Maven project validation passed"
+          else
+            echo "ℹ️ Projeto não-Maven (sem pom.xml)"
+          fi
+
+      - name: Validate YAML files
+        run: |
+          python3 -c "
+          import yaml
+          import pathlib
+
+          # Validar arquivos YAML principais
+          yaml_files = [
+              'docker-compose.yml'
+          ]
+
+          for file_path in yaml_files:
+              if pathlib.Path(file_path).exists():
+                  try:
+                      with open(file_path, 'r', encoding='utf-8') as f:
+                          yaml.safe_load(f)
+                      print(f'✅ YAML válido: {file_path}')
+                  except Exception as e:
+                      print(f'❌ Erro no YAML {file_path}: {e}')
+                      exit(1)
+          "
+
+      - name: ✅ Confirmar consumo mínimo do Key Vault
+        if: ${{ steps.check_secrets.outputs.has_keyvault == 'true' }}
+        run: |
+          echo 'Job de validação não consome segredos do Key Vault (lista vazia).'
+          echo "✅ Validação de Key Vault concluída sem consumo de segredos"
+
+      - name: Validation completed
+        run: |
+          echo "✅ Validação concluída - pronto para deploy"
+
+  deploy-selfhosted:
+    needs: validate-and-build
+    runs-on: [self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-resultados]
+    timeout-minutes: 20
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.0
+        with:
+          clean: true
+          fetch-depth: 1
+
+      - name: 🔐 Azure Login (OIDC)
+        if: ${{ needs.validate-and-build.outputs.has_azure_creds == 'true' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ✅ Validar conexão Azure (OIDC)
+        if: ${{ needs.validate-and-build.outputs.has_azure_creds == 'true' }}
+        run: |
+          echo "🔍 Validando conexão com Azure via OIDC..."
+          if az account show >/dev/null 2>&1; then
+            echo "✅ Conexão Azure OIDC estabelecida"
+            echo "Subscription: $(az account show --query id -o tsv)"
+          else
+            echo "❌ Falha na conexão Azure OIDC"
+            exit 1
+          fi
+
+      - name: 🔒 Security Validation - Port Exposure
+        run: |
+          # Verificar exposição de portas do Resultados
+          if grep -E "^\s*-\s*[\"']?(8081|8082|8083):" docker-compose.yml; then
+            echo "⚠️ WARNING: Resultados ports may be exposed - ensure firewall protection"
+            echo "🔒 Note: Current configuration works but consider overlay-only for maximum security"
+          else
+            echo "✅ No ports exposed - maximum security (overlay network only)"
+          fi
+
+      - name: 🔐 Azure Key Vault - Secrets para Resultados
+        if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
+        env:
+          KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
+        run: |
+          echo "🔑 Recuperando secrets específicos para Resultados..."
+
+          # Lista de secrets necessários para o serviço Resultados
+          secrets_resultados=(
+            "conexao-de-sorte-database-host"
+            "conexao-de-sorte-database-port"
+            "conexao-de-sorte-database-username"
+            "conexao-de-sorte-database-password"
+            "conexao-de-sorte-database-r2dbc-url"
+            "conexao-de-sorte-redis-host"
+            "conexao-de-sorte-redis-port"
+            "conexao-de-sorte-redis-password"
+            "conexao-de-sorte-redis-database"
+            "conexao-de-sorte-rabbitmq-host"
+            "conexao-de-sorte-rabbitmq-port"
+            "conexao-de-sorte-rabbitmq-username"
+            "conexao-de-sorte-rabbitmq-password"
+            "conexao-de-sorte-rabbitmq-vhost"
+            "conexao-de-sorte-jwt-secret"
+            "conexao-de-sorte-jwt-issuer"
+            "conexao-de-sorte-server-port"
+          )
+
+          # Recuperar secrets do Key Vault
+          for secret in "${secrets_resultados[@]}"; do
+            if az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" >/dev/null 2>&1; then
+              value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" --query value -o tsv)
+              # Export as environment variable (uppercase, replace hyphens)
+              env_name=$(echo "$secret" | sed 's/conexao-de-sorte-//' | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+              echo "${env_name}=${value}" >> $GITHUB_ENV
+              echo "✅ Secret recuperado: $secret"
+            else
+              echo "⚠️ Secret não encontrado: $secret"
+            fi
+          done
+
+      - name: 🌐 Preparar rede overlay compartilhada
+        env:
+          NETWORK_NAME: ${{ env.DOCKER_NETWORK_NAME }}
+        run: |
+          set -euo pipefail
+          echo "🔍 Verificando rede overlay: $NETWORK_NAME"
+
+          if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+            echo "🏗️ Criando rede overlay compartilhada: $NETWORK_NAME"
+            docker network create \
+              --driver overlay \
+              --attachable \
+              --subnet=10.10.0.0/16 \
+              --gateway=10.10.0.1 \
+              "${NETWORK_NAME}"
+            echo "✅ Rede overlay criada: $NETWORK_NAME"
+          else
+            echo "✅ Rede overlay já existe: $NETWORK_NAME"
+          fi
+
+      - name: 🧹 Cleanup anterior (Resultados)
+        env:
+          STACK_NAME: ${{ env.STACK_NAME }}
+        run: |
+          set -euo pipefail
+          echo "🧹 Iniciando limpeza de recursos anteriores..."
+
+          # 1. Graceful shutdown: scale services to 0 replicas
+          if docker service ls --filter name="$STACK_NAME" --format '{{.Name}}' | grep -q "^$STACK_NAME"; then
+            echo "🔄 Scaling down serviços do stack $STACK_NAME..."
+            for service in $(docker service ls --filter name="$STACK_NAME" --format '{{.Name}}'); do
+              echo "  - Scaling down: $service"
+              docker service scale "$service=0" >/dev/null 2>&1 || true
+            done
+            sleep 10
+          fi
+
+          # 2. Remove stack
+          if docker stack ls --format '{{.Name}}' | grep -q "^$STACK_NAME\$"; then
+            echo "🗄️ Removendo stack: $STACK_NAME"
+            docker stack rm "$STACK_NAME"
+            sleep 15
+          fi
+
+          # 3. Clean orphan containers
+          echo "🧹 Limpando containers órfãos relacionados ao Resultados..."
+          orphan_containers=$(docker ps -a --filter name="*resultados*" --format '{{.ID}} {{.Names}}' | grep -E "(resultados|$STACK_NAME)" || true)
+          if [[ -n "$orphan_containers" ]]; then
+            echo "$orphan_containers" | while read container_id container_name; do
+              if [[ -n "$container_id" ]]; then
+                echo "  🗑️ Removendo container órfão: $container_name ($container_id)"
+                docker stop "$container_id" >/dev/null 2>&1 || true
+                docker rm "$container_id" >/dev/null 2>&1 || true
+              fi
+            done
+          fi
+
+          # 4. Image cleanup (keep 3 recent versions)
+          echo "🧹 Limpando imagens antigas do Resultados (mantendo 3 versões recentes)..."
+          old_images=$(docker images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep -E "(resultados|ghcr.io.*resultados)" | tail -n +4 || true)
+          if [[ -n "$old_images" ]]; then
+            echo "$old_images" | while read image_id image_tag; do
+              if [[ -n "$image_id" && "$image_tag" != *"<none>"* ]]; then
+                echo "  🗑️ Removendo imagem antiga: $image_tag ($image_id)"
+                docker rmi "$image_id" >/dev/null 2>&1 || true
+              fi
+            done
+          fi
+
+          echo "✅ Limpeza concluída"
+
+      - name: 🚀 Deploy Resultados Stack (Swarm-Only)
+        env:
+          STACK_NAME: ${{ env.STACK_NAME }}
+          COMPOSE_FILE: docker-compose.yml
+        run: |
+          echo "🚀 Iniciando deploy do Resultados com Docker Swarm..."
+
+          echo "🏗️ Executando deploy da stack '$STACK_NAME'..."
+          docker stack deploy -c "$COMPOSE_FILE" "$STACK_NAME"
+
+          echo "⏰ Aguardando estabilização dos serviços Resultados..."
+          sleep 35
+
+      - name: 🔍 Healthcheck Resultados
+        env:
+          STACK_NAME: ${{ env.STACK_NAME }}
+        run: |
+          echo "🔍 Validando saúde do Resultados..."
+
+          timeout=200
+          elapsed=0
+          health_passed=false
+
+          while [ $elapsed -lt $timeout ] && [ "$health_passed" = false ]; do
+            RESULTADOS_CONTAINER=$(docker ps -q -f name="${STACK_NAME}_resultados" | head -1)
+
+            if [ -n "$RESULTADOS_CONTAINER" ]; then
+              echo "🔍 Testando health check do Resultados... ($elapsed/$timeout segundos)"
+
+              # Check 1: Process validation
+              if docker exec "$RESULTADOS_CONTAINER" ps aux 2>/dev/null | grep -q "[j]ava\|[s]pring"; then
+                echo "✅ Resultados health check passed (process validation)"
+                health_passed=true
+                break
+              fi
+
+              # Check 2: Log validation
+              if docker logs "$RESULTADOS_CONTAINER" 2>/dev/null | grep -q "Started.*Application\|Tomcat started\|Started ResultadosApplication"; then
+                echo "✅ Resultados health check passed (logs validation)"
+                health_passed=true
+                break
+              fi
+
+              echo "⏳ Resultados ainda não está pronto... ($elapsed/$timeout segundos)"
+            else
+              echo "⏳ Container Resultados ainda não encontrado... ($elapsed/$timeout segundos)"
+            fi
+
+            sleep 10
+            elapsed=$((elapsed + 10))
+          done
+
+          if [ "$health_passed" = false ]; then
+            echo "⚠️ Resultados health check não passou em $timeout segundos"
+            echo "🔍 Verificando logs finais do Resultados..."
+            if [ -n "$RESULTADOS_CONTAINER" ]; then
+              echo "--- Últimos 30 logs do Resultados ---"
+              docker logs "$RESULTADOS_CONTAINER" --tail 30 2>/dev/null || true
+              echo "--- Fim dos logs ---"
+            fi
+            echo "💡 Nota: Resultados pode estar funcionando mesmo com health check parcial"
+            exit 1
+          else
+            echo "✅ Resultados health check concluído com sucesso!"
+          fi
+
+      - name: 🔗 Connectivity Validation
+        env:
+          STACK_NAME: ${{ env.STACK_NAME }}
+          DOCKER_NETWORK_NAME: ${{ env.DOCKER_NETWORK_NAME }}
+        run: |
+          echo "🔗 Validando conectividade do Resultados..."
+
+          if docker service ls | grep -q "${STACK_NAME}_resultados"; then
+            echo "✅ Serviço Resultados encontrado no Swarm"
+          else
+            echo "❌ Serviço Resultados não encontrado no Swarm"
+            exit 1
+          fi
+
+          if docker network inspect "$DOCKER_NETWORK_NAME" | grep -q resultados; then
+            echo "✅ Resultados conectado à rede overlay"
+          else
+            echo "⚠️ Resultados pode não estar na rede overlay correta"
+          fi
+
+          echo "📊 Status final dos serviços:"
+          docker service ls --filter name="${STACK_NAME}_*" --format "table {{.Name}}\t{{.Replicas}}\t{{.Image}}"
+
+      - name: 🧼 Limpeza de recursos no servidor
+        if: success()
+        env:
+          STACK_NAME: ${{ env.STACK_NAME }}
+        run: |
+          set -euo pipefail
+          before_usage=$(mktemp)
+          after_usage=$(mktemp)
+          docker system df > "$before_usage"
+          echo "🧹 Removendo containers parados (≥12h)..."
+          docker container prune -f --filter "until=12h"
+          echo "🧹 Removendo imagens não utilizadas (≥7d)..."
+          docker image prune -f --filter "until=168h"
+          echo "🧹 Removendo caches de build antigos (≥7d)..."
+          docker builder prune -f --filter "until=168h" || true
+          docker system df > "$after_usage"
+          echo "📦 Uso de recursos após limpeza:"
+          cat "$after_usage"
+          {
+            echo "## Limpeza de recursos no servidor"
+            echo ""
+            echo "### Uso antes"
+            sed 's/^/    /' "$before_usage"
+            echo ""
+            echo "### Uso depois"
+            sed 's/^/    /' "$after_usage"
+          } >> "$GITHUB_STEP_SUMMARY"
+          rm -f "$before_usage" "$after_usage"
