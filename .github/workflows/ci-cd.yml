@@ -219,57 +219,70 @@ jobs:
             echo "✅ No ports exposed - maximum security (overlay network only)"
           fi
 
-      - name: 🔑 Get Key Vault secrets (método manual - compatível Gateway)
+      - name: 🔐 Get secrets from Azure Key Vault (OIDC)
+        id: get-secrets
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
-        env:
-          KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
-        run: |
-          echo "🔍 Recuperando secrets essenciais para Resultados..."
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.76.0
+          inlineScript: |
+            set -Eeuo pipefail
+            echo "🔐 Buscando secrets essenciais do Resultados no Key Vault..."
 
-          # Lista de secrets necessários (mesmo padrão do Gateway)
-          essential_secrets=(
-            "conexao-de-sorte-database-r2dbc-url"
-            "conexao-de-sorte-database-username"
-            "conexao-de-sorte-database-password"
-            "conexao-de-sorte-redis-host"
-            "conexao-de-sorte-redis-port"
-            "conexao-de-sorte-redis-password"
-            "conexao-de-sorte-redis-database"
-            "conexao-de-sorte-rabbitmq-host"
-            "conexao-de-sorte-rabbitmq-port"
-            "conexao-de-sorte-rabbitmq-username"
-            "conexao-de-sorte-rabbitmq-password"
-            "conexao-de-sorte-rabbitmq-vhost"
-            "conexao-de-sorte-jwt-secret"
-            "conexao-de-sorte-jwt-issuer"
-            "conexao-de-sorte-server-port"
-          )
+            # Obter nome do Key Vault
+            KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
 
-          essential_count=0
-          for secret in "${essential_secrets[@]}"; do
-            echo "🔍 Tentando obter: $secret"
-            if value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" --query "value" -o tsv 2>/dev/null); then
-              if [[ -n "$value" ]]; then
-                # Converte o nome do secret para variável de ambiente (UPPERCASE + _)
-                var_name=$(echo "$secret" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-                echo "$var_name=$value" >> "$GITHUB_ENV"
-                echo "::add-mask::$value"
-                echo "✅ $secret obtido (len=${#value}) => exportado como $var_name"
-                essential_count=$((essential_count + 1))
-              else
-                echo "⚠️ $secret encontrado mas vazio"
-              fi
-            else
-              echo "❌ $secret não encontrado no Key Vault"
+            # Verificar autenticação Azure
+            echo "🔍 Verificando autenticação Azure..."
+            if ! az account show >/dev/null 2>&1; then
+              echo "❌ Azure CLI não autenticado - execute o login Azure OIDC primeiro"
+              exit 1
             fi
-          done
 
-          echo "📊 Total de secrets essenciais obtidos: $essential_count/${#essential_secrets[@]}"
-          if [[ $essential_count -ge 10 ]]; then
-            echo "✅ Secrets suficientes para deploy (mínimo 10/15)"
-          else
-            echo "⚠️ Poucos secrets obtidos - deploy pode falhar"
-          fi
+            # Lista de secrets necessários para o serviço Resultados
+            essential_secrets=(
+              "conexao-de-sorte-database-r2dbc-url"
+              "conexao-de-sorte-database-username"
+              "conexao-de-sorte-database-password"
+              "conexao-de-sorte-redis-host"
+              "conexao-de-sorte-redis-port"
+              "conexao-de-sorte-redis-password"
+              "conexao-de-sorte-redis-database"
+              "conexao-de-sorte-rabbitmq-host"
+              "conexao-de-sorte-rabbitmq-port"
+              "conexao-de-sorte-rabbitmq-username"
+              "conexao-de-sorte-rabbitmq-password"
+              "conexao-de-sorte-rabbitmq-vhost"
+              "conexao-de-sorte-jwt-secret"
+              "conexao-de-sorte-jwt-issuer"
+              "conexao-de-sorte-server-port"
+            )
+
+            essential_count=0
+            for secret in "${essential_secrets[@]}"; do
+              echo "🔍 Tentando obter: $secret"
+              if value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" --query "value" -o tsv 2>/dev/null); then
+                if [[ -n "$value" && "$value" != "null" ]]; then
+                  # Converte o nome do secret para variável de ambiente (UPPERCASE + _)
+                  var_name=$(echo "$secret" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+                  echo "$var_name=$value" >> "$GITHUB_ENV"
+                  echo "::add-mask::$value"
+                  echo "✅ $secret obtido (len=${#value}) => exportado como $var_name"
+                  essential_count=$((essential_count + 1))
+                else
+                  echo "⚠️ $secret encontrado mas vazio"
+                fi
+              else
+                echo "⚠️ $secret não encontrado no Key Vault"
+              fi
+            done
+
+            echo "📊 Total de secrets essenciais obtidos: $essential_count/${#essential_secrets[@]}"
+            if [[ $essential_count -ge 10 ]]; then
+              echo "✅ Secrets suficientes para deploy (mínimo 10/15)"
+            else
+              echo "⚠️ Poucos secrets obtidos - deploy pode falhar"
+            fi
 
       - name: 🌐 Preparar rede overlay compartilhada
         env:
