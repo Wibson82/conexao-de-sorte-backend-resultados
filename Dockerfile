@@ -111,7 +111,7 @@ ENV CONEXAO_DE_SORTE_DATABASE_URL=${CONEXAO_DE_SORTE_DATABASE_URL} \
 
 
 # Expor porta da aplicação
-EXPOSE 8082
+
 
 # Health check nativo
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
@@ -232,12 +232,12 @@ RUN printf '%s\n' '#!/bin/sh' \
 # Mudar para usuário não-root
 USER appuser:appgroup
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["dumb-init", "--", "java", "-jar", "/app/app.jar"]
 
 
 # === ESTÁGIO 3: DEBUG (Opcional) ===
 FROM runtime AS debug
 
 # Configurar debug remoto (apenas para desenvolvimento, sem perfil fixo)
-EXPOSE 5005
+
 CMD ["-jar", "app.jar"]
