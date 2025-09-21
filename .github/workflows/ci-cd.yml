@@ -1,4 +1,4 @@
-name: "🎯 Resultados Backend – CI/CD Pipeline"
+name: "🎯 Resultados Backend - CI/CD Pipeline"
 
 on:
   push:
