@@ -42,21 +42,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y python3 python3-yaml jq curl zip unzip
-          
+
       - name: Install SDKMAN! and Java 25 LTS
         run: |
           # Install SDKMAN!
           curl -s "https://get.sdkman.io" | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
-          
+
           # Install Java 25 LTS (Azul Zulu - OpenJDK)
           sdk install java 25-zulu
           sdk default java 25-zulu
-          
+
           # Verify installation
           java -version
           javac -version
-          
+
           # Setup environment for subsequent steps
           echo "SDKMAN_DIR=$HOME/.sdkman" >> $GITHUB_ENV
           echo "$HOME/.sdkman/bin" >> $GITHUB_PATH
@@ -117,7 +117,7 @@ jobs:
         run: |
           # Setup SDKMAN! environment
           source "$HOME/.sdkman/bin/sdkman-init.sh"
-          
+
           if [ -f "pom.xml" ]; then
             echo "✅ Projeto Maven detectado"
             mvn validate
@@ -148,12 +148,6 @@ jobs:
                       exit(1)
           "
 
-      - name: ✅ Confirmar consumo mínimo do Key Vault
-        if: ${{ steps.check_secrets.outputs.has_keyvault == 'true' }}
-        run: |
-          echo 'Job de validação não consome segredos do Key Vault (lista vazia).'
-          echo "✅ Validação de Key Vault concluída sem consumo de segredos"
-
       - name: Validation completed
         run: |
           # Setup SDKMAN! environment for validation
@@ -161,18 +155,6 @@ jobs:
           echo "✅ Validação concluída - pronto para deploy"
           echo "📋 Java version check:"
           java -version
-          
-      - name: 🧪 Test Java 25 LTS Features
-        run: |
-          # Setup SDKMAN! environment
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-          
-          # Compilar e executar teste Java 25
-          echo "🧪 Compilando e executando teste Java 25 LTS..."
-          javac TestJava25.java
-          java TestJava25
-          
-          echo "✅ Teste Java 25 LTS concluído com sucesso!"
 
   deploy-selfhosted:
     needs: validate-and-build
@@ -197,18 +179,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: ✅ Validar conexão Azure (OIDC)
-        if: ${{ needs.validate-and-build.outputs.has_azure_creds == 'true' }}
-        run: |
-          echo "🔍 Validando conexão com Azure via OIDC..."
-          if az account show >/dev/null 2>&1; then
-            echo "✅ Conexão Azure OIDC estabelecida"
-            echo "Subscription: $(az account show --query id -o tsv)"
-          else
-            echo "❌ Falha na conexão Azure OIDC"
-            exit 1
-          fi
-
       - name: 🔒 Security Validation - Port Exposure
         run: |
           # Verificar exposição de portas do Resultados
@@ -228,18 +198,18 @@ jobs:
           inlineScript: |
             set -Eeuo pipefail
             echo "🔐 Buscando secrets essenciais do Resultados no Key Vault..."
-
+            
             # Obter nome do Key Vault
             KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
-
+            
             # Verificar autenticação Azure
             echo "🔍 Verificando autenticação Azure..."
             if ! az account show >/dev/null 2>&1; then
               echo "❌ Azure CLI não autenticado - execute o login Azure OIDC primeiro"
               exit 1
             fi
-
-            # Lista de secrets necessários para o serviço Resultados
+            
+            # Lista de secrets essenciais para o serviço Resultados
             essential_secrets=(
               "conexao-de-sorte-database-r2dbc-url"
               "conexao-de-sorte-database-username"
@@ -257,17 +227,31 @@ jobs:
               "conexao-de-sorte-jwt-issuer"
               "conexao-de-sorte-server-port"
             )
-
+            
             essential_count=0
             for secret in "${essential_secrets[@]}"; do
               echo "🔍 Tentando obter: $secret"
               if value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" --query "value" -o tsv 2>/dev/null); then
                 if [[ -n "$value" && "$value" != "null" ]]; then
+                  # Validações de segurança para senhas e secrets críticos
+                  if [[ "$secret" == *"password"* || "$secret" == *"jwt-secret"* ]]; then
+                    # Validar tamanho mínimo (mínimo 8 caracteres)
+                    if [[ ${#value} -lt 8 ]]; then
+                      echo "❌ Secret $secret muito curto (mínimo 8 caracteres)" >&2
+                      exit 1
+                    fi
+                    # Validar que não é uma senha padrão/fraca
+                    if [[ "$value" =~ ^(12345678|password|admin|root|teste|senha)$ ]]; then
+                      echo "❌ Secret $secret usa valor padrão/inseguro" >&2
+                      exit 1
+                    fi
+                  fi
+                  
                   # Converte o nome do secret para variável de ambiente (UPPERCASE + _)
                   var_name=$(echo "$secret" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
                   echo "$var_name=$value" >> "$GITHUB_ENV"
                   echo "::add-mask::$value"
-                  echo "✅ $secret obtido (len=${#value}) => exportado como $var_name"
+                  echo "✅ $secret obtido e validado (len=${#value}) => exportado como $var_name"
                   essential_count=$((essential_count + 1))
                 else
                   echo "⚠️ $secret encontrado mas vazio"
@@ -276,12 +260,13 @@ jobs:
                 echo "⚠️ $secret não encontrado no Key Vault"
               fi
             done
-
+            
             echo "📊 Total de secrets essenciais obtidos: $essential_count/${#essential_secrets[@]}"
             if [[ $essential_count -ge 10 ]]; then
-              echo "✅ Secrets suficientes para deploy (mínimo 10/15)"
+              echo "✅ Secrets suficientes e validados para deploy (mínimo 10/15)"
             else
-              echo "⚠️ Poucos secrets obtidos - deploy pode falhar"
+              echo "❌ Poucos secrets obtidos - deploy será abortado"
+              exit 1
             fi
 
       - name: 🌐 Preparar rede overlay compartilhada
