@@ -462,14 +462,7 @@ jobs:
             last_response="$response"
 
             if [[ -n "$response" ]]; then
-              status=$(printf '%s' "$response" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(data.get('status', ''))
-except Exception:
-    pass
-" 2>/dev/null || true)
+              status=$(echo "$response" | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data.get("status", ""))' 2>/dev/null || true)
               status=${status//$'\n'/}
               echo "📊 Status reportado pelo monitor: ${status:-indefinido}"
 
