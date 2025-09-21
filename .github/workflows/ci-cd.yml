@@ -79,11 +79,11 @@ jobs:
       - name: 🔎 Validar OIDC Azure
         id: check_secrets
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
-          AZURE_KEYVAULT_ENDPOINT: ${{ secrets.AZURE_KEYVAULT_ENDPOINT }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_KEYVAULT_NAME: ${{ vars.AZURE_KEYVAULT_NAME }}
+          AZURE_KEYVAULT_ENDPOINT: ${{ vars.AZURE_KEYVAULT_ENDPOINT }}
         run: |
           set -Eeuo pipefail
           missing=()
@@ -193,9 +193,9 @@ jobs:
         if: ${{ needs.validate-and-build.outputs.has_azure_creds == 'true' }}
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: ✅ Validar conexão Azure (OIDC)
         if: ${{ needs.validate-and-build.outputs.has_azure_creds == 'true' }}
@@ -219,46 +219,38 @@ jobs:
             echo "✅ No ports exposed - maximum security (overlay network only)"
           fi
 
-      - name: 🔐 Azure Key Vault - Secrets para Resultados
+      - name: 🔑 Get required Key Vault secrets (Resultados)
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
-        env:
-          KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
+        id: kv
+        uses: azure/get-keyvault-secrets@v1
+        with:
+          keyvault: ${{ vars.AZURE_KEYVAULT_NAME }}
+          secrets: |
+            conexao-de-sorte-database-r2dbc-url
+            conexao-de-sorte-database-username
+            conexao-de-sorte-database-password
+            conexao-de-sorte-redis-host
+            conexao-de-sorte-redis-port
+            conexao-de-sorte-redis-password
+            conexao-de-sorte-redis-database
+            conexao-de-sorte-rabbitmq-host
+            conexao-de-sorte-rabbitmq-port
+            conexao-de-sorte-rabbitmq-username
+            conexao-de-sorte-rabbitmq-password
+            conexao-de-sorte-rabbitmq-vhost
+            conexao-de-sorte-jwt-secret
+            conexao-de-sorte-jwt-issuer
+            conexao-de-sorte-server-port
+
+      - name: 🔒 Mask sensitive values
+        if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
+        shell: bash
         run: |
-          echo "🔑 Recuperando secrets específicos para Resultados..."
-
-          # Lista de secrets necessários para o serviço Resultados
-          secrets_resultados=(
-            "conexao-de-sorte-database-host"
-            "conexao-de-sorte-database-port"
-            "conexao-de-sorte-database-username"
-            "conexao-de-sorte-database-password"
-            "conexao-de-sorte-database-r2dbc-url"
-            "conexao-de-sorte-redis-host"
-            "conexao-de-sorte-redis-port"
-            "conexao-de-sorte-redis-password"
-            "conexao-de-sorte-redis-database"
-            "conexao-de-sorte-rabbitmq-host"
-            "conexao-de-sorte-rabbitmq-port"
-            "conexao-de-sorte-rabbitmq-username"
-            "conexao-de-sorte-rabbitmq-password"
-            "conexao-de-sorte-rabbitmq-vhost"
-            "conexao-de-sorte-jwt-secret"
-            "conexao-de-sorte-jwt-issuer"
-            "conexao-de-sorte-server-port"
-          )
-
-          # Recuperar secrets do Key Vault
-          for secret in "${secrets_resultados[@]}"; do
-            if az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" >/dev/null 2>&1; then
-              value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" --query value -o tsv)
-              # Export as environment variable (uppercase, replace hyphens)
-              env_name=$(echo "$secret" | sed 's/conexao-de-sorte-//' | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-              echo "${env_name}=${value}" >> $GITHUB_ENV
-              echo "✅ Secret recuperado: $secret"
-            else
-              echo "⚠️ Secret não encontrado: $secret"
-            fi
-          done
+          set -Eeuo pipefail
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-database-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-redis-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}"
 
       - name: 🌐 Preparar rede overlay compartilhada
         env:
@@ -332,9 +324,26 @@ jobs:
           echo "✅ Limpeza concluída"
 
       - name: 🚀 Deploy Resultados Stack (Swarm-Only)
+        if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
         env:
           STACK_NAME: ${{ env.STACK_NAME }}
           COMPOSE_FILE: docker-compose.yml
+          # Environment variables from Key Vault
+          DATABASE_R2DBC_URL: ${{ steps.kv.outputs.conexao-de-sorte-database-r2dbc-url }}
+          DATABASE_USERNAME: ${{ steps.kv.outputs.conexao-de-sorte-database-username }}
+          DATABASE_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-database-password }}
+          REDIS_HOST: ${{ steps.kv.outputs.conexao-de-sorte-redis-host }}
+          REDIS_PORT: ${{ steps.kv.outputs.conexao-de-sorte-redis-port }}
+          REDIS_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-redis-password }}
+          REDIS_DATABASE: ${{ steps.kv.outputs.conexao-de-sorte-redis-database }}
+          RABBITMQ_HOST: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-host }}
+          RABBITMQ_PORT: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-port }}
+          RABBITMQ_USERNAME: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-username }}
+          RABBITMQ_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-password }}
+          RABBITMQ_VHOST: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-vhost }}
+          JWT_SECRET: ${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}
+          JWT_ISSUER: ${{ steps.kv.outputs.conexao-de-sorte-jwt-issuer }}
+          SERVER_PORT: ${{ steps.kv.outputs.conexao-de-sorte-server-port }}
         run: |
           echo "🚀 Iniciando deploy do Resultados com Docker Swarm..."
 
