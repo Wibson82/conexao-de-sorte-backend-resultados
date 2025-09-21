@@ -8,32 +8,21 @@ services:
       SERVER_PORT: 8083  # Configurar porta interna como 8083
 
       # Configurações de Banco de Dados (R2DBC)
-      DATABASE_HOST: "${DATABASE_HOST:-conexao-mysql}"
-      DATABASE_PORT: "${DATABASE_PORT:-3306}"
-      DATABASE_USERNAME: "${DATABASE_USERNAME:-conexao}"
-      DATABASE_PASSWORD: "${DATABASE_PASSWORD:-}"
-      DATABASE_R2DBC_URL: "${DATABASE_R2DBC_URL:-r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte}"
+      SPRING_R2DBC_URL: "r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte"
+      SPRING_R2DBC_USERNAME: "conexao"
+      SPRING_R2DBC_PASSWORD: "conexao123"  # Temporário para teste
 
       # Configurações Redis
-      REDIS_HOST: "${REDIS_HOST:-conexao-redis}"
-      REDIS_PORT: "${REDIS_PORT:-6379}"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
-      REDIS_DATABASE: "${REDIS_DATABASE:-5}"
+      SPRING_DATA_REDIS_HOST: "conexao-redis"
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_DATABASE: "5"
 
-      # Configurações RabbitMQ
-      RABBITMQ_HOST: "${RABBITMQ_HOST:-conexao-rabbitmq}"
-      RABBITMQ_PORT: "${RABBITMQ_PORT:-5672}"
-      RABBITMQ_USERNAME: "${RABBITMQ_USERNAME:-}"
-      RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD:-}"
-      RABBITMQ_VHOST: "${RABBITMQ_VHOST:-/}"
-
-      # Configurações JWT
-      JWT_SECRET: "${JWT_SECRET:-}"
-      JWT_ISSUER: "${JWT_ISSUER:-https://conexaodesorte.com.br}"
+      # Configurações básicas do serviço
+      LOGGING_LEVEL_ROOT: "INFO"
     networks:
       - conexao-network-swarm
-    volumes:
-      - ./logs:/app/logs
+    # volumes:
+    #   - ./logs:/app/logs  # Removido temporariamente devido a Permission denied
     ports:
       - "8083:8083"  # Usar porta 8083 para evitar conflito com notifications (8082)
     healthcheck:
