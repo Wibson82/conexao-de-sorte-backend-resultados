@@ -211,7 +211,7 @@ jobs:
             
             # Lista de secrets essenciais para o serviço Resultados
             essential_secrets=(
-              "conexao-de-sorte-r2dbc-url"
+              "conexao-de-sorte-database-r2dbc-url"
               "conexao-de-sorte-database-username"
               "conexao-de-sorte-database-password"
               "conexao-de-sorte-redis-host"
@@ -346,7 +346,7 @@ jobs:
           STACK_NAME: ${{ env.STACK_NAME }}
           COMPOSE_FILE: docker-compose.yml
           # Environment variables from Key Vault (método manual - padrão Gateway)
-          DATABASE_R2DBC_URL: ${{ env.CONEXAO_DE_SORTE_R2DBC_URL }}
+          DATABASE_R2DBC_URL: ${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL }}
           DATABASE_USERNAME: ${{ env.CONEXAO_DE_SORTE_DATABASE_USERNAME }}
           DATABASE_PASSWORD: ${{ env.CONEXAO_DE_SORTE_DATABASE_PASSWORD }}
           REDIS_HOST: ${{ env.CONEXAO_DE_SORTE_REDIS_HOST }}
