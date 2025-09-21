@@ -189,85 +189,34 @@ jobs:
             echo "✅ No ports exposed - maximum security (overlay network only)"
           fi
 
-      - name: 🔐 Get secrets from Azure Key Vault (OIDC)
-        id: get-secrets
-        if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
-        uses: azure/CLI@v1
+      - name: 🔐 Get secrets from Azure Key Vault
+        uses: azure/get-keyvault-secrets@v1
         with:
-          azcliversion: 2.76.0
-          inlineScript: |
-            set -Eeuo pipefail
-            echo "🔐 Buscando secrets essenciais do Resultados no Key Vault..."
-            
-            # Obter nome do Key Vault
-            KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
-            
-            # Verificar autenticação Azure
-            echo "🔍 Verificando autenticação Azure..."
-            if ! az account show >/dev/null 2>&1; then
-              echo "❌ Azure CLI não autenticado - execute o login Azure OIDC primeiro"
-              exit 1
-            fi
-            
-            # Lista de secrets essenciais para o serviço Resultados
-            essential_secrets=(
-              "conexao-de-sorte-database-r2dbc-url"
-              "conexao-de-sorte-database-username"
-              "conexao-de-sorte-database-password"
-              "conexao-de-sorte-redis-host"
-              "conexao-de-sorte-redis-port"
-              "conexao-de-sorte-redis-password"
-              "conexao-de-sorte-redis-database"
-              "conexao-de-sorte-rabbitmq-host"
-              "conexao-de-sorte-rabbitmq-port"
-              "conexao-de-sorte-rabbitmq-username"
-              "conexao-de-sorte-rabbitmq-password"
-              "conexao-de-sorte-rabbitmq-vhost"
-              "conexao-de-sorte-jwt-secret"
-              "conexao-de-sorte-jwt-issuer"
-              "conexao-de-sorte-server-port"
-            )
-            
-            essential_count=0
-            for secret in "${essential_secrets[@]}"; do
-              echo "🔍 Tentando obter: $secret"
-              if value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" --query "value" -o tsv 2>/dev/null); then
-                if [[ -n "$value" && "$value" != "null" ]]; then
-                  # Validações de segurança para senhas e secrets críticos
-                  if [[ "$secret" == *"password"* || "$secret" == *"jwt-secret"* ]]; then
-                    # Validar tamanho mínimo (mínimo 8 caracteres)
-                    if [[ ${#value} -lt 8 ]]; then
-                      echo "❌ Secret $secret muito curto (mínimo 8 caracteres)" >&2
-                      exit 1
-                    fi
-                    # Validar que não é uma senha padrão/fraca
-                    if [[ "$value" =~ ^(12345678|password|admin|root|teste|senha)$ ]]; then
-                      echo "❌ Secret $secret usa valor padrão/inseguro" >&2
-                      exit 1
-                    fi
-                  fi
-                  
-                  # Converte o nome do secret para variável de ambiente (UPPERCASE + _)
-                  var_name=$(echo "$secret" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-                  echo "$var_name=$value" >> "$GITHUB_ENV"
-                  echo "::add-mask::$value"
-                  echo "✅ $secret obtido e validado (len=${#value}) => exportado como $var_name"
-                  essential_count=$((essential_count + 1))
-                else
-                  echo "⚠️ $secret encontrado mas vazio"
-                fi
-              else
-                echo "⚠️ $secret não encontrado no Key Vault"
-              fi
-            done
-            
-            echo "📊 Total de secrets essenciais obtidos: $essential_count/${#essential_secrets[@]}"
-            if [[ $essential_count -ge 10 ]]; then
-              echo "✅ Secrets suficientes e validados para deploy (mínimo 10/15)"
-            else
-              echo "❌ Poucos secrets obtidos - deploy será abortado"
-              exit 1
-            fi
+          keyvault: "kv-conexao-de-sorte"
+          secrets: |
+            conexao-de-sorte-database-r2dbc-url
+            conexao-de-sorte-database-username
+            conexao-de-sorte-database-password
+            conexao-de-sorte-redis-host
+            conexao-de-sorte-redis-port
+            conexao-de-sorte-redis-password
+            conexao-de-sorte-redis-database
+            conexao-de-sorte-rabbitmq-host
+            conexao-de-sorte-rabbitmq-port
+            conexao-de-sorte-rabbitmq-username
+            conexao-de-sorte-rabbitmq-password
+            conexao-de-sorte-rabbitmq-vhost
+            conexao-de-sorte-jwt-secret
+            conexao-de-sorte-jwt-issuer
+            conexao-de-sorte-server-port
+        id: kv
+
+      - name: 🔒 Mask sensitive values
+        run: |
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-database-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-redis-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}"
 
       - name: 🌐 Preparar rede overlay compartilhada
         env:
@@ -341,26 +290,25 @@ jobs:
           echo "✅ Limpeza concluída"
 
       - name: 🚀 Deploy Resultados Stack (Swarm-Only)
-        if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
         env:
           STACK_NAME: ${{ env.STACK_NAME }}
           COMPOSE_FILE: docker-compose.yml
-          # Environment variables from Key Vault (método manual - padrão Gateway)
-          DATABASE_R2DBC_URL: ${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL }}
-          DATABASE_USERNAME: ${{ env.CONEXAO_DE_SORTE_DATABASE_USERNAME }}
-          DATABASE_PASSWORD: ${{ env.CONEXAO_DE_SORTE_DATABASE_PASSWORD }}
-          REDIS_HOST: ${{ env.CONEXAO_DE_SORTE_REDIS_HOST }}
-          REDIS_PORT: ${{ env.CONEXAO_DE_SORTE_REDIS_PORT }}
-          REDIS_PASSWORD: ${{ env.CONEXAO_DE_SORTE_REDIS_PASSWORD }}
-          REDIS_DATABASE: ${{ env.CONEXAO_DE_SORTE_REDIS_DATABASE }}
-          RABBITMQ_HOST: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_HOST }}
-          RABBITMQ_PORT: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_PORT }}
-          RABBITMQ_USERNAME: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_USERNAME }}
-          RABBITMQ_PASSWORD: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_PASSWORD }}
-          RABBITMQ_VHOST: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_VHOST }}
-          JWT_SECRET: ${{ env.CONEXAO_DE_SORTE_JWT_SECRET }}
-          JWT_ISSUER: ${{ env.CONEXAO_DE_SORTE_JWT_ISSUER }}
-          SERVER_PORT: ${{ env.CONEXAO_DE_SORTE_SERVER_PORT }}
+          # Environment variables from Key Vault (standardized method)
+          DATABASE_R2DBC_URL: ${{ steps.kv.outputs.conexao-de-sorte-database-r2dbc-url }}
+          DATABASE_USERNAME: ${{ steps.kv.outputs.conexao-de-sorte-database-username }}
+          DATABASE_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-database-password }}
+          REDIS_HOST: ${{ steps.kv.outputs.conexao-de-sorte-redis-host }}
+          REDIS_PORT: ${{ steps.kv.outputs.conexao-de-sorte-redis-port }}
+          REDIS_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-redis-password }}
+          REDIS_DATABASE: ${{ steps.kv.outputs.conexao-de-sorte-redis-database }}
+          RABBITMQ_HOST: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-host }}
+          RABBITMQ_PORT: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-port }}
+          RABBITMQ_USERNAME: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-username }}
+          RABBITMQ_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-password }}
+          RABBITMQ_VHOST: ${{ steps.kv.outputs.conexao-de-sorte-rabbitmq-vhost }}
+          JWT_SECRET: ${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}
+          JWT_ISSUER: ${{ steps.kv.outputs.conexao-de-sorte-jwt-issuer }}
+          SERVER_PORT: ${{ steps.kv.outputs.conexao-de-sorte-server-port }}
         run: |
           echo "🚀 Iniciando deploy do Resultados com Docker Swarm..."
 
