@@ -5,7 +5,6 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: "prod"
       RESULTADOS_LOG_LEVEL: "INFO"
-      SERVER_PORT: 8083  # Configurar porta interna como 8083
 
       # Configurações de Banco de Dados (R2DBC) - do Azure Key Vault
       SPRING_R2DBC_URL: "${DATABASE_R2DBC_URL:-r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte}"
