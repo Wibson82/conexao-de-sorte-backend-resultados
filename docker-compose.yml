@@ -33,16 +33,23 @@ services:
       LOGGING_LEVEL_ROOT: "INFO"
     networks:
       - conexao-network-swarm
-    # volumes:
-    #   - ./logs:/app/logs  # Removido temporariamente devido a Permission denied
-    ports:
-      - "8083:8083"  # Usar porta 8083 para evitar conflito com notifications (8082)
+    volumes:
+      - resultados-logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
     # ==========================================================================
     # 🏷️ LABELS PARA INTEGRAÇÃO COM GATEWAY - NOVO PADRÃO
     # ==========================================================================
@@ -66,8 +73,7 @@ services:
       - "microservice.category=results"
 
 volumes:
-  resultados_data:
-    name: conexao_resultados_data
+  resultados-logs:
 
 networks:
   conexao-network-swarm:
