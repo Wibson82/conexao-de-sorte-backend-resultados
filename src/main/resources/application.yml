@@ -40,8 +40,8 @@ spring:
   r2dbc:
     # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
     url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}}
-    username: ${conexao-de-sorte-database-username:}
-    password: ${conexao-de-sorte-database-password:}
+    username: ${conexao-de-sorte-database-username}
+    password: ${conexao-de-sorte-database-password}
     pool:
       enabled: true
       initial-size: 1
@@ -237,16 +237,16 @@ spring:
       
   r2dbc:
     url: ${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
-    username: ${conexao-de-sorte-database-username:}
-    password: ${conexao-de-sorte-redis-password:senha_teste}
+    username: ${conexao-de-sorte-database-username}
+    password: ${conexao-de-sorte-database-password}
     pool:
       initial-size: 20
       max-size: 100
       
   flyway:
     url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
-    user: ${conexao-de-sorte-database-username:}
-    password: ${conexao-de-sorte-redis-password:senha_teste}
+    user: ${conexao-de-sorte-database-username}
+    password: ${conexao-de-sorte-database-password:}
     
 server:
   port: 8083
