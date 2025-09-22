@@ -332,6 +332,9 @@ jobs:
 
           IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
           created_secrets=0
+          
+          # Inicializar contador de forma segura
+          export created_secrets
 
           # Verificar se estamos em um ambiente Docker Swarm
           echo "🔍 Verificando status do Docker Swarm..."
@@ -390,7 +393,7 @@ jobs:
               while [[ $retry_count -lt $max_retries ]] && [[ "$secret_created" == "false" ]]; do
                 if echo -n "$secret_value" | docker secret create "$secret_name" - 2>&1; then
                   echo "✅ Docker Secret criado: $secret_name"
-                  ((created_secrets++))
+              created_secrets=$((created_secrets + 1))
                   secret_created=true
                 else
                   ((retry_count++))
@@ -420,6 +423,9 @@ jobs:
           done
 
           echo "✅ Total de Docker Secrets criados: $created_secrets/${#SECRETS_ARRAY[@]}"
+          
+          # Debug do contador
+          echo "📈 Debug: Valor final do contador: $created_secrets"
           
           # Listar todos os secrets disponíveis no Docker
           echo "📋 Secrets disponíveis no Docker Swarm:"
