@@ -98,8 +98,8 @@ jobs:
           fi
           echo "✅ Identificadores Azure configurados via secrets"
 
-          # Key Vault é opcional
-          if [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
+          # Key Vault é opcional - verificar ENDPOINT ou NAME
+          if [[ -n "${AZURE_KEYVAULT_ENDPOINT:-}" ]] || [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
             echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_keyvault=false" >> "$GITHUB_OUTPUT"
