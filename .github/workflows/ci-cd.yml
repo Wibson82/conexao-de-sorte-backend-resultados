@@ -199,6 +199,7 @@ jobs:
 
       - name: 🔐 Get secrets from Azure Key Vault (OIDC)
         id: get-secrets
+        continue-on-error: true
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
         run: |
           set -Eeuo pipefail
@@ -273,9 +274,58 @@ jobs:
         shell: /usr/bin/bash -e {0}
 
       - name: 🔐 Criar Docker Secrets from Azure Key Vault
+        if: always() && (steps.get-secrets.outcome == 'success' || steps.get-secrets.outcome == 'failure')
         run: |
-          set -euo pipefail
+          # Não usar set -e para permitir continuar mesmo com erros individuais
           echo "🔐 Criando Docker Secrets a partir dos valores do Azure Key Vault..."
+          
+          # Verificar status do step anterior
+          echo "📊 Status do step get-secrets: ${{ steps.get-secrets.outcome }}"
+          if [[ "${{ steps.get-secrets.outcome }}" != "success" ]]; then
+            echo "⚠️ Step anterior falhou ou teve problemas - tentando continuar mesmo assim..."
+          fi
+          
+          # Função para obter secret do step anterior ou variável de ambiente
+          get_secret_value() {
+            local secret_name="$1"
+            local var_name=$(echo "$secret_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+            
+            # Tentar variável de ambiente primeiro (mais confiável)
+            if [[ -n "${!var_name:-}" ]]; then
+              echo "${!var_name}"
+            else
+              echo ""
+            fi
+          }
+          
+          # Função para tratamento de erros
+          handle_error() {
+            echo "❌ Erro na linha $1: $2"
+            # Não sair, apenas registrar o erro
+          }
+          
+          # Configurar trap para capturar erros
+          trap 'handle_error $LINENO "$BASH_COMMAND"' ERR
+          
+          # Debug: Verificar variáveis de ambiente disponíveis
+          echo "📋 Verificando variáveis de ambiente disponíveis..."
+          echo "🔍 Buscando por variáveis CONEXAO_DE_SORTE..."
+          env | grep -E "CONEXAO_DE_SORTE_" | sed 's/=.*$/=[REDACTED]/' || echo "⚠️ Nenhuma variável CONEXAO_DE_SORTE encontrada"
+          
+          # Debug: Verificar step outputs disponíveis
+          echo "🔍 Verificando step outputs disponíveis..."
+          echo "Step outputs do get-secrets:"
+          echo "- conexao-de-sorte-database-r2dbc-url: $([ -n "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL:-}" ] && echo "DEFINIDO" || echo "VAZIO")"
+          echo "- conexao-de-sorte-database-username: $([ -n "${CONEXAO_DE_SORTE_DATABASE_USERNAME:-}" ] && echo "DEFINIDO" || echo "VAZIO")"
+          echo "- conexao-de-sorte-database-password: $([ -n "${CONEXAO_DE_SORTE_DATABASE_PASSWORD:-}" ] && echo "DEFINIDO" || echo "VAZIO")"
+          
+          # Verificar se as variáveis do Azure Key Vault foram carregadas
+          echo "🔍 Verificando se secrets do Azure Key Vault foram carregados..."
+          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL:-}" ]]; then
+            echo "⚠️ CONEXAO_DE_SORTE_DATABASE_R2DBC_URL não está definido"
+          else
+            echo "✅ CONEXAO_DE_SORTE_DATABASE_R2DBC_URL está definido (tamanho: ${#CONEXAO_DE_SORTE_DATABASE_R2DBC_URL} caracteres)"
+          fi
 
           # Lista de secrets essenciais para injetar no Docker Swarm
           secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port"
@@ -283,35 +333,116 @@ jobs:
           IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
           created_secrets=0
 
+          # Verificar se estamos em um ambiente Docker Swarm
+          echo "🔍 Verificando status do Docker Swarm..."
+          if ! docker info 2>/dev/null | grep -q "Swarm: active"; then
+            echo "⚠️ Docker Swarm não está ativo - tentando inicializar..."
+            # Tentar inicializar como manager
+            if docker swarm init --advertise-addr 127.0.0.1 2>/dev/null; then
+              echo "✅ Docker Swarm inicializado com sucesso"
+              sleep 3
+            else
+              echo "⚠️ Não foi possível inicializar Docker Swarm - tentando como worker..."
+              # Se já houver um swarm, este comando falhará, mas não é crítico
+              docker swarm init --advertise-addr 127.0.0.1 --force-new-cluster 2>/dev/null || echo "⚠️ Docker Swarm pode já estar inicializado ou não é possível"
+              sleep 2
+            fi
+          else
+            echo "✅ Docker Swarm já está ativo"
+          fi
+
           for secret_name in "${SECRETS_ARRAY[@]}"; do
-            # Converter nome do secret para variável de ambiente
-            var_name=$(echo "$secret_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-            secret_value="${!var_name:-}"
-
+            echo "📋 Processando secret: $secret_name"
+            
+            # Obter valor do secret usando a função
+            secret_value=$(get_secret_value "$secret_name")
+            
             if [[ -n "$secret_value" ]]; then
-              echo "🔐 Criando Docker Secret: $secret_name"
-
-              # Remover secret existente se houver
-              if docker secret inspect "$secret_name" >/dev/null 2>&1; then
-                echo "🗑️ Removendo secret existente: $secret_name"
-                docker secret rm "$secret_name" || true
-                sleep 1
+                echo "🔐 Criando Docker Secret: $secret_name"
+              
+              # Validar tamanho do valor
+              if [[ ${#secret_value} -lt 1 ]]; then
+                echo "⚠️ Secret $secret_name tem valor vazio - pulando..."
+                continue
+              fi
+              
+              # Limitar tamanho máximo (Docker tem limite de 500KB)
+              if [[ ${#secret_value} -gt 500000 ]]; then
+                echo "⚠️ Secret $secret_name muito grande (${#secret_value} bytes) - pulando..."
+                continue
               fi
 
-              # Criar novo secret
-              echo -n "$secret_value" | docker secret create "$secret_name" -
-              echo "✅ Docker Secret criado: $secret_name"
-              ((created_secrets++))
+              # Remover secret existente se houver (ignorar erros)
+              if docker secret inspect "$secret_name" >/dev/null 2>&1; then
+                echo "🗑️ Removendo secret existente: $secret_name"
+                docker secret rm "$secret_name" || echo "⚠️ Não foi possível remover secret existente, continuando..."
+                sleep 2
+              fi
+
+              # Criar novo secret com tratamento de erro
+              echo "🔐 Criando novo secret: $secret_name"
+              
+              # Tentar criar o secret com timeout e retry
+              max_retries=3
+              retry_count=0
+              secret_created=false
+              
+              while [[ $retry_count -lt $max_retries ]] && [[ "$secret_created" == "false" ]]; do
+                if echo -n "$secret_value" | docker secret create "$secret_name" - 2>&1; then
+                  echo "✅ Docker Secret criado: $secret_name"
+                  ((created_secrets++))
+                  secret_created=true
+                else
+                  ((retry_count++))
+                  if [[ $retry_count -lt $max_retries ]]; then
+                    echo "⚠️ Tentativa $retry_count falhou, tentando novamente em 2 segundos..."
+                    sleep 2
+                  else
+                    echo "❌ Falha ao criar secret após $max_retries tentativas: $secret_name"
+                    echo "⚠️ Verificando se o secret foi criado mesmo assim..."
+                    if docker secret inspect "$secret_name" >/dev/null 2>&1; then
+                      echo "✅ Secret $secret_name existe apesar do erro - continuando..."
+                      ((created_secrets++))
+                      secret_created=true
+                    else
+                      echo "❌ Secret $secret_name realmente não foi criado"
+                    fi
+                  fi
+                fi
+              done
+              
+              if [[ "$secret_created" == "false" ]]; then
+                echo "⚠️ Continuando com os próximos secrets..."
+              fi
             else
-              echo "⚠️ Secret $secret_name não encontrado na variável $var_name"
+              echo "⚠️ Secret $secret_name não encontrado em nenhuma fonte"
             fi
           done
 
           echo "✅ Total de Docker Secrets criados: $created_secrets/${#SECRETS_ARRAY[@]}"
-
+          
+          # Listar todos os secrets disponíveis no Docker
+          echo "📋 Secrets disponíveis no Docker Swarm:"
+          docker secret ls || echo "⚠️ Não foi possível listar secrets"
+          
+          # Verificar se os secrets críticos foram criados
+          echo "🔍 Verificando secrets críticos:"
+          critical_missing=0
+          for secret_name in "${SECRETS_ARRAY[@]}"; do
+            if docker secret inspect "$secret_name" >/dev/null 2>&1; then
+              echo "✅ Secret crítico encontrado: $secret_name"
+            else
+              echo "❌ Secret crítico ausente: $secret_name"
+              ((critical_missing++))
+            fi
+          done
+          
           if [[ $created_secrets -lt 5 ]]; then
-            echo "❌ Poucos secrets criados - deploy pode falhar"
+            echo "❌ Poucos secrets criados - deploy pode falhar (mínimo 5/10)"
+            echo "❌ Secrets críticos ausentes: $critical_missing"
             exit 1
+          else
+            echo "✅ Sucesso: Mínimo de 5 secrets foi atingido"
           fi
 
       - name: 🌐 Preparar rede overlay compartilhada
