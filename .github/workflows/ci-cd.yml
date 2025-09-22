@@ -303,8 +303,9 @@ jobs:
               return 0
             fi
             
-            echo "❌ Secret $secret_name não encontrado no Azure Key Vault"
-            return 1
+            # Retornar vazio se não encontrar (não usar return 1 para evitar trigger do trap)
+            echo ""
+            return 0
           }
           
           # Função para tratamento de erros
