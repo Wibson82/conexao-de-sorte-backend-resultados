@@ -366,11 +366,11 @@ jobs:
             
             if [[ -n "$secret_value" ]]; then
                 echo "✅ Secret $secret_name encontrado, prosseguindo com criação do Docker Secret"
+                echo "🔐 Criando Docker Secret: $secret_name"
             else
                 echo "⚠️ Secret $secret_name não encontrado no Azure Key Vault, pulando..."
                 continue
             fi
-                echo "🔐 Criando Docker Secret: $secret_name"
               
               # Validar tamanho do valor
               if [[ ${#secret_value} -lt 1 ]]; then
@@ -445,9 +445,6 @@ jobs:
               else
                 echo "✅ Secret $secret_name processado com sucesso"
               fi
-            else
-              echo "⚠️ Secret $secret_name não encontrado em nenhuma fonte"
-            fi
           done
 
           echo "✅ Total de Docker Secrets criados/processados: $created_secrets/18 (apenas os que existem no Azure Key Vault)"
