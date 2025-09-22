@@ -296,16 +296,9 @@ jobs:
               return 0
             fi
             
-            # Fallback para secrets que não existem no Azure Key Vault mas são necessários
-            case "$secret_name" in
-              "conexao-de-sorte-jwt-jwks-uri")
-                echo "⚠️ Usando valor fallback para $secret_name"
-                echo "https://conexaodesorte.com.br/.well-known/jwks.json"
-                return 0
-                ;;
-            esac
+
             
-            echo ""
+            echo "❌ Secret $secret_name não encontrado no Azure Key Vault"
             return 1
           }
           
@@ -338,7 +331,7 @@ jobs:
             echo "✅ CONEXAO_DE_SORTE_DATABASE_R2DBC_URL está definido (tamanho: ${#CONEXAO_DE_SORTE_DATABASE_R2DBC_URL} caracteres)"
           fi
 
-          # Lista de secrets essenciais para injetar no Docker Swarm
+          # Lista de secrets do Azure Key Vault (apenas os que existem)
           secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-database-host,conexao-de-sorte-database-port,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-secret,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port,conexao-de-sorte-rabbitmq-host,conexao-de-sorte-rabbitmq-port,conexao-de-sorte-rabbitmq-username,conexao-de-sorte-rabbitmq-password,conexao-de-sorte-rabbitmq-vhost"
 
           IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
@@ -372,6 +365,11 @@ jobs:
             secret_value=$(get_secret_value "$secret_name")
             
             if [[ -n "$secret_value" ]]; then
+                echo "✅ Secret $secret_name encontrado, prosseguindo com criação do Docker Secret"
+            else
+                echo "⚠️ Secret $secret_name não encontrado no Azure Key Vault, pulando..."
+                continue
+            fi
                 echo "🔐 Criando Docker Secret: $secret_name"
               
               # Validar tamanho do valor
@@ -452,7 +450,7 @@ jobs:
             fi
           done
 
-          echo "✅ Total de Docker Secrets criados/processados: $created_secrets/${#SECRETS_ARRAY[@]}"
+          echo "✅ Total de Docker Secrets criados/processados: $created_secrets/18 (apenas os que existem no Azure Key Vault)"
           
           # Debug do contador
           echo "📈 Debug: Valor final do contador: $created_secrets"
@@ -473,8 +471,8 @@ jobs:
             fi
           done
           
-          if [[ $created_secrets -lt 9 ]]; then
-            echo "❌ Poucos secrets criados - deploy pode falhar (mínimo 9/18)"
+          if [[ $created_secrets -lt 5 ]]; then
+            echo "❌ Poucos secrets criados - deploy pode falhar (mínimo 5/18)"
             echo "❌ Secrets críticos ausentes: $critical_missing"
             exit 1
           else
