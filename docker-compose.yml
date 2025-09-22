@@ -5,32 +5,18 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: "prod"
       RESULTADOS_LOG_LEVEL: "INFO"
-
-      # Configurações de Banco de Dados (R2DBC) - do Azure Key Vault
-      SPRING_R2DBC_URL: "${DATABASE_R2DBC_URL:-r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte}"
-      SPRING_R2DBC_USERNAME: "${DATABASE_USERNAME:-conexao}"
-      SPRING_R2DBC_PASSWORD: "${DATABASE_PASSWORD:-conexao123}"
-
-      # Configurações Redis - do Azure Key Vault
-      SPRING_DATA_REDIS_HOST: "${REDIS_HOST:-conexao-redis}"
-      SPRING_DATA_REDIS_PORT: "${REDIS_PORT:-6379}"
-      SPRING_DATA_REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
-      SPRING_DATA_REDIS_DATABASE: "${REDIS_DATABASE:-5}"
-
-      # Configurações RabbitMQ - do Azure Key Vault
-      SPRING_RABBITMQ_HOST: "${RABBITMQ_HOST:-conexao-rabbitmq}"
-      SPRING_RABBITMQ_PORT: "${RABBITMQ_PORT:-5672}"
-      SPRING_RABBITMQ_USERNAME: "${RABBITMQ_USERNAME:-guest}"
-      SPRING_RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD:-guest}"
-      SPRING_RABBITMQ_VIRTUAL_HOST: "${RABBITMQ_VHOST:-/}"
-
-      # Configurações JWT - do Azure Key Vault
-      JWT_SECRET: "${JWT_SECRET:-dev-secret}"
-      JWT_ISSUER: "${JWT_ISSUER:-https://conexaodesorte.com.br}"
-
-      # Configurações básicas do serviço
-      SERVER_PORT: "${SERVER_PORT:-8083}"
       LOGGING_LEVEL_ROOT: "INFO"
+    secrets:
+      - conexao-de-sorte-database-r2dbc-url
+      - conexao-de-sorte-database-username
+      - conexao-de-sorte-database-password
+      - conexao-de-sorte-redis-host
+      - conexao-de-sorte-redis-port
+      - conexao-de-sorte-redis-password
+      - conexao-de-sorte-redis-database
+      - conexao-de-sorte-jwt-issuer
+      - conexao-de-sorte-jwt-jwks-uri
+      - conexao-de-sorte-server-port
     networks:
       - conexao-network-swarm
     volumes:
@@ -78,4 +64,26 @@ volumes:
 networks:
   conexao-network-swarm:
     name: conexao-network-swarm
+    external: true
+
+secrets:
+  conexao-de-sorte-database-r2dbc-url:
+    external: true
+  conexao-de-sorte-database-username:
+    external: true
+  conexao-de-sorte-database-password:
+    external: true
+  conexao-de-sorte-redis-host:
+    external: true
+  conexao-de-sorte-redis-port:
+    external: true
+  conexao-de-sorte-redis-password:
+    external: true
+  conexao-de-sorte-redis-database:
+    external: true
+  conexao-de-sorte-jwt-issuer:
+    external: true
+  conexao-de-sorte-jwt-jwks-uri:
+    external: true
+  conexao-de-sorte-server-port:
     external: true
