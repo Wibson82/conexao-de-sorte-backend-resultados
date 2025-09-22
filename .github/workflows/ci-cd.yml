@@ -378,7 +378,17 @@ jobs:
               # Remover secret existente se houver (ignorar erros)
               if docker secret inspect "$secret_name" >/dev/null 2>&1; then
                 echo "🗑️ Removendo secret existente: $secret_name"
-                docker secret rm "$secret_name" || echo "⚠️ Não foi possível remover secret existente, continuando..."
+                if docker secret rm "$secret_name" 2>/dev/null; then
+                  echo "✅ Secret removido com sucesso"
+                else
+                  echo "⚠️ Não foi possível remover secret existente (pode estar em uso), verificando se já existe..."
+                  # Verifica se o secret já existe e está funcionando
+                  if docker secret inspect "$secret_name" >/dev/null 2>&1; then
+                    echo "✅ Secret $secret_name já existe e está funcionando, pulando criação"
+                    created_secrets=$((created_secrets + 1))
+                    continue
+                  fi
+                fi
                 sleep 2
               fi
 
@@ -392,11 +402,17 @@ jobs:
               
               while [[ $retry_count -lt $max_retries ]] && [[ "$secret_created" == "false" ]]; do
                 if echo -n "$secret_value" | docker secret create "$secret_name" - 2>&1; then
-                  echo "✅ Docker Secret criado: $secret_name"
-              created_secrets=$((created_secrets + 1))
+                echo "✅ Docker Secret criado: $secret_name"
+                created_secrets=$((created_secrets + 1))
+                secret_created=true
+              else
+                # Verifica se o erro é porque o secret já existe
+                if docker secret inspect "$secret_name" >/dev/null 2>&1; then
+                  echo "✅ Secret $secret_name já existe e está funcionando"
+                  created_secrets=$((created_secrets + 1))
                   secret_created=true
                 else
-                  ((retry_count++))
+                  retry_count=$((retry_count + 1))
                   if [[ $retry_count -lt $max_retries ]]; then
                     echo "⚠️ Tentativa $retry_count falhou, tentando novamente em 2 segundos..."
                     sleep 2
@@ -405,17 +421,20 @@ jobs:
                     echo "⚠️ Verificando se o secret foi criado mesmo assim..."
                     if docker secret inspect "$secret_name" >/dev/null 2>&1; then
                       echo "✅ Secret $secret_name existe apesar do erro - continuando..."
-                      ((created_secrets++))
+                      created_secrets=$((created_secrets + 1))
                       secret_created=true
                     else
                       echo "❌ Secret $secret_name realmente não foi criado"
                     fi
                   fi
                 fi
+              fi
               done
               
               if [[ "$secret_created" == "false" ]]; then
                 echo "⚠️ Continuando com os próximos secrets..."
+              else
+                echo "✅ Secret $secret_name processado com sucesso"
               fi
             else
               echo "⚠️ Secret $secret_name não encontrado em nenhuma fonte"
@@ -439,7 +458,7 @@ jobs:
               echo "✅ Secret crítico encontrado: $secret_name"
             else
               echo "❌ Secret crítico ausente: $secret_name"
-              ((critical_missing++))
+              critical_missing=$((critical_missing + 1))
             fi
           done
           
