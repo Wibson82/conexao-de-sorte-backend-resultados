@@ -1,6 +1,6 @@
 # 📊 Microserviço de Resultados
 
-![Java](https://img.shields.io/badge/Java-24-orange?style=flat-square&logo=openjdk)
+![Java](https://img.shields.io/badge/Java-25-orange?style=flat-square&logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5+-green?style=flat-square&logo=springboot)
 ![WebFlux](https://img.shields.io/badge/WebFlux-Reactive-blue?style=flat-square)
 ![R2DBC](https://img.shields.io/badge/R2DBC-Reactive-purple?style=flat-square)

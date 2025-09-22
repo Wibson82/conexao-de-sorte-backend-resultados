@@ -283,7 +283,7 @@
                 <configuration>
                     <release>${java.version}</release>
                     <jdkToolchain>
-                        <version>[24,)</version>
+                        <version>[25,)</version>
                     </jdkToolchain>
                     <compilerArgs>
                         <arg>-Xlint:deprecation</arg>
@@ -389,7 +389,7 @@
                 <configuration>
                     <rules>
                         <requireJavaVersion>
-                            <version>[24,)</version>
+                            <version>[25,)</version>
                             <message>🚫 DOWNGRADE BLOCKED: Java 25 LTS+ required, found ${java.version}</message>
                         </requireJavaVersion>
                         <requireMavenVersion>

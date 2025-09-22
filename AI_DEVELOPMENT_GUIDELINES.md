@@ -44,7 +44,7 @@ Este documento estabelece as diretrizes obrigatórias para todos os modelos de i
 
 ### Java & Spring
 ```yaml
-Java: 24+ (LTS mais recente disponível)
+Java: 25+ (LTS mais recente disponível)
 Spring Boot: 3.5+
 Spring Security: 6.1+
 Spring WebFlux: Reativo obrigatório
@@ -340,7 +340,7 @@ Rate Limit: Por usuário/IP
 ```xml
 <!-- Sempre usar versões mais recentes compatíveis -->
 <spring-boot.version>3.5+</spring-boot.version>
-<java.version>24</java.version>
+<java.version>25</java.version>
 <testcontainers.version>1.20+</testcontainers.version>
 <micrometer.version>1.13+</micrometer.version>
 ```

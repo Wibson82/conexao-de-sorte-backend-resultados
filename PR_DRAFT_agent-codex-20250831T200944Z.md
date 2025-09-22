@@ -11,7 +11,7 @@
 - chore(test-data): adicionar `run/secrets/*` com secrets mockados para uso em testes locais.
 
 ## Como reproduzir localmente
-- Pré-requisitos: Java 24+, Docker (opcional para Redis/MySQL), Node 23+ (não necessário aqui).
+- Pré-requisitos: Java 25+, Docker (opcional para Redis/MySQL), Node 23+ (não necessário aqui).
 - Comandos:
   - `./mvnw -T1C -DskipTests=false clean verify`
   - SAST (se existir): `./scripts/run-sast.sh`

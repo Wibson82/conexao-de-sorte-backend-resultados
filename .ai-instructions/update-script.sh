@@ -58,7 +58,7 @@ Estas diretrizes devem ser seguidas **SEMPRE** ao gerar código para este projet
 
 ### 🏗️ STACK TECNOLÓGICA
 \`\`\`yaml
-Java: 24+ (LTS mais recente)
+Java: 25+ (LTS mais recente)
 Spring Boot: 3.5+
 Spring WebFlux: Reativo obrigatório
 R2DBC: Para acesso reativo ao banco

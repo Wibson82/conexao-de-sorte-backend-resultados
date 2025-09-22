@@ -172,7 +172,7 @@ echo "✅ AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 echo "❌ AZURE_CLIENT_SECRET: NÃO DEVE EXISTIR"
 ```
 
-## ⚠️ Warning do Google Guice com Java 24
+## ⚠️ Warning do Google Guice com Java 25
 
 ### Warning:
 ```
@@ -186,7 +186,7 @@ O Google Guice 5.1.0 (usado pelo Maven) ainda utiliza APIs deprecated do `sun.mi
 ### 💡 Soluções Recomendadas:
 
 1. **Aguardar atualização do Maven:**
-   - Este é um problema conhecido do Maven com Java 24
+   - Este é um problema conhecido do Maven com Java 25
    - Aguardar versão do Maven que use Guice atualizado
 
 2. **Suprimir warnings (temporário):**
@@ -196,7 +196,7 @@ O Google Guice 5.1.0 (usado pelo Maven) ainda utiliza APIs deprecated do `sun.mi
 
 3. **Usar versão anterior do Java (se necessário):**
    - Considerar Java 21 LTS se os warnings forem problemáticos
-   - Java 24 ainda está em preview/early access
+   - Java 25+ ainda está em preview/early access
 
 ## 📊 Status das Correções
 
