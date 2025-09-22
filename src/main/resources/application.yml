@@ -36,10 +36,10 @@ spring:
           min-idle: 2
           max-wait: 3000ms
 
-  # R2DBC - define defaults seguros para Docker com segredos Azure Key Vault
+  # R2DBC - usa secret base + parâmetros específicos do projeto
   r2dbc:
-    # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
-    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}}
+    # Secret: r2dbc:mysql://conexao-mysql:3306 + parâmetros específicos
+    url: ${conexao-de-sorte-database-r2dbc-url}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false
     username: ${conexao-de-sorte-database-username}
     password: ${conexao-de-sorte-database-password}
     pool:
@@ -52,12 +52,7 @@ spring:
       max-life-time: 60m
       validation-query: SELECT 1
       
-  # Flyway para migrations (usa JDBC)
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: true
+  # Flyway para migrations (usa JDBC) - configuração completa abaixo no perfil prod
     
   # Cache reativo (Redis) configurado acima na linha 24
           
@@ -244,9 +239,14 @@ spring:
       max-size: 100
       
   flyway:
-    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    # Secret JDBC base: jdbc:mysql://conexao-mysql:3306 + parâmetros específicos
+    url: ${conexao-de-sorte-database-jdbc-url}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false
     user: ${conexao-de-sorte-database-username}
-    password: ${conexao-de-sorte-database-password:}
+    password: ${conexao-de-sorte-database-password}
     
 server:
   port: 8083
