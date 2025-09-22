@@ -192,82 +192,77 @@ jobs:
       - name: 🔐 Get secrets from Azure Key Vault (OIDC)
         id: get-secrets
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.76.0
-          inlineScript: |
-            set -Eeuo pipefail
-            echo "🔐 Buscando secrets essenciais do Resultados no Key Vault..."
+        run: |
+          set -Eeuo pipefail
+          echo "🔐 Buscando secrets essenciais do Resultados no Key Vault..."
 
-            # Obter nome do Key Vault
-            KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          # Usar endpoint do Key Vault se disponível, senão usar nome
+          KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          if [[ -n "$KEYVAULT_ENDPOINT" ]]; then
+            # Extrair o nome do Key Vault do endpoint (formato: https://nome-do-keyvault.vault.azure.net/)
+            KEYVAULT_NAME=$(echo "$KEYVAULT_ENDPOINT" | sed 's|https://\(.*\)\.vault\.azure\.net/.*|\1|')
+            echo "🔍 Usando Key Vault do endpoint: $KEYVAULT_NAME"
+          else
+            KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
+            echo "🔍 Usando Key Vault do nome: $KEYVAULT_NAME"
+          fi
 
-            # Verificar autenticação Azure
-            echo "🔍 Verificando autenticação Azure..."
-            if ! az account show >/dev/null 2>&1; then
-              echo "❌ Azure CLI não autenticado - execute o login Azure OIDC primeiro"
-              exit 1
-            fi
+          # Verificar autenticação Azure
+          echo "🔍 Verificando autenticação Azure..."
+          if ! az account show >/dev/null 2>&1; then
+            echo "❌ Azure CLI não autenticado - execute o login Azure OIDC primeiro"
+            exit 1
+          fi
 
-            # Lista de secrets essenciais para o serviço Resultados
-            essential_secrets=(
-              "conexao-de-sorte-database-r2dbc-url"
-              "conexao-de-sorte-database-username"
-              "conexao-de-sorte-database-password"
-              "conexao-de-sorte-redis-host"
-              "conexao-de-sorte-redis-port"
-              "conexao-de-sorte-redis-password"
-              "conexao-de-sorte-redis-database"
-              "conexao-de-sorte-rabbitmq-host"
-              "conexao-de-sorte-rabbitmq-port"
-              "conexao-de-sorte-rabbitmq-username"
-              "conexao-de-sorte-rabbitmq-password"
-              "conexao-de-sorte-rabbitmq-vhost"
-              "conexao-de-sorte-jwt-secret"
-              "conexao-de-sorte-jwt-issuer"
-              "conexao-de-sorte-server-port"
-            )
+          # Lista de secrets essenciais para o serviço Resultados
+          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-rabbitmq-host,conexao-de-sorte-rabbitmq-port,conexao-de-sorte-rabbitmq-username,conexao-de-sorte-rabbitmq-password,conexao-de-sorte-rabbitmq-vhost,conexao-de-sorte-jwt-secret,conexao-de-sorte-jwt-issuer,conexao-de-sorte-server-port"
 
-            essential_count=0
-            for secret in "${essential_secrets[@]}"; do
-              echo "🔍 Tentando obter: $secret"
-              if value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret" --query "value" -o tsv 2>/dev/null); then
-                if [[ -n "$value" && "$value" != "null" ]]; then
-                  # Validações de segurança para senhas e secrets críticos
-                  if [[ "$secret" == *"password"* || "$secret" == *"jwt-secret"* ]]; then
-                    # Validar tamanho mínimo (mínimo 8 caracteres)
-                    if [[ ${#value} -lt 8 ]]; then
-                      echo "❌ Secret $secret muito curto (mínimo 8 caracteres)" >&2
-                      exit 1
-                    fi
-                    # Validar que não é uma senha padrão/fraca
-                    if [[ "$value" =~ ^(12345678|password|admin|root|teste|senha)$ ]]; then
-                      echo "❌ Secret $secret usa valor padrão/inseguro" >&2
-                      exit 1
-                    fi
-                  fi
-
-                  # Converte o nome do secret para variável de ambiente (UPPERCASE + _)
-                  var_name=$(echo "$secret" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-                  echo "$var_name=$value" >> "$GITHUB_ENV"
-                  echo "::add-mask::$value"
-                  echo "✅ $secret obtido e validado (len=${#value}) => exportado como $var_name"
-                  essential_count=$((essential_count + 1))
-                else
-                  echo "⚠️ $secret encontrado mas vazio"
+          IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
+          essential_count=0
+          
+          for secret_name in "${SECRETS_ARRAY[@]}"; do
+            echo "🔍 Obtendo segredo: $secret_name"
+            secret_value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret_name" --query 'value' -o tsv 2>/dev/null || echo "")
+            
+            if [[ -n "$secret_value" ]]; then
+              echo "✅ Segredo obtido: $secret_name"
+              
+              # Validações de segurança para senhas e secrets críticos
+              if [[ "$secret_name" == *"password"* || "$secret_name" == *"jwt-secret"* ]]; then
+                # Validar tamanho mínimo (mínimo 8 caracteres)
+                if [[ ${#secret_value} -lt 8 ]]; then
+                  echo "❌ Secret $secret_name muito curto (mínimo 8 caracteres)" >&2
+                  exit 1
                 fi
-              else
-                echo "⚠️ $secret não encontrado no Key Vault"
+                # Validar que não é uma senha padrão/fraca
+                if [[ "$secret_value" =~ ^(12345678|password|admin|root|teste|senha)$ ]]; then
+                  echo "❌ Secret $secret_name usa valor padrão/inseguro" >&2
+                  exit 1
+                fi
               fi
-            done
-
-            echo "📊 Total de secrets essenciais obtidos: $essential_count/${#essential_secrets[@]}"
-            if [[ $essential_count -ge 10 ]]; then
-              echo "✅ Secrets suficientes e validados para deploy (mínimo 10/15)"
+              
+              # Salvar com o nome original (com traços) para compatibilidade com o step de validação
+              echo "${secret_name}=${secret_value}" >> $GITHUB_OUTPUT
+              
+              # Também salvar como variável de ambiente para uso posterior
+              var_name=$(echo "$secret_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+              echo "$var_name=$secret_value" >> "$GITHUB_ENV"
+              echo "::add-mask::$secret_value"
+              echo "✅ $secret_name obtido e validado (len=${#secret_value}) => exportado como $var_name"
+              essential_count=$((essential_count + 1))
             else
-              echo "❌ Poucos secrets obtidos - deploy será abortado"
-              exit 1
+              echo "⚠️ Segredo não encontrado: $secret_name"
             fi
+          done
+
+          echo "📊 Total de secrets essenciais obtidos: $essential_count/${#SECRETS_ARRAY[@]}"
+          if [[ $essential_count -ge 10 ]]; then
+            echo "✅ Secrets suficientes e validados para deploy (mínimo 10/15)"
+          else
+            echo "❌ Poucos secrets obtidos - deploy será abortado"
+            exit 1
+          fi
+        shell: /usr/bin/bash -e {0}
 
       - name: 🌐 Preparar rede overlay compartilhada
         env:
