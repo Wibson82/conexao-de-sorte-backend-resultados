@@ -296,7 +296,12 @@ jobs:
               return 0
             fi
             
-
+            # Se não encontrar na variável de ambiente, tentar buscar do step anterior
+            local step_output_var="${secret_name//-/_}"
+            if [[ -n "${!step_output_var:-}" ]]; then
+              echo "${!step_output_var}"
+              return 0
+            fi
             
             echo "❌ Secret $secret_name não encontrado no Azure Key Vault"
             return 1
