@@ -63,6 +63,8 @@ RUN apk add --no-cache \
     tzdata \
     curl \
     dumb-init \
+    mysql-client \
+    netcat-openbsd \
     && rm -rf /var/cache/apk/*
 
 # Configurar timezone
@@ -78,6 +80,10 @@ WORKDIR /app
 
 # Copiar JAR da aplicação do estágio de build
 COPY --from=builder --chown=appuser:appgroup /build/target/*.jar app.jar
+
+# Copiar script de inicialização do database
+COPY --chown=appuser:appgroup scripts/init-database.sh /app/init-database.sh
+RUN chmod +x /app/init-database.sh
 
 # Build-time args (Key Vault → Build Args → ENV)
 ARG CONEXAO_DE_SORTE_DATABASE_URL
@@ -232,10 +238,30 @@ RUN printf '%s\n' '#!/bin/sh' \
     chmod +x /app/docker-entrypoint.sh && \
     chown appuser:appgroup /app/docker-entrypoint.sh
 
+# Script de entrada que executa inicialização do DB e depois a aplicação
+RUN printf '%s\n' '#!/bin/sh' \
+    'set -e' \
+    'echo "🚀 Iniciando container resultados..."' \
+    '' \
+    '# Executar inicialização do database' \
+    'if [ -f /app/init-database.sh ]; then' \
+    '    echo "🗄️ Executando inicialização do database..."' \
+    '    /app/init-database.sh' \
+    'else' \
+    '    echo "⚠️ Script de inicialização não encontrado, prosseguindo..."' \
+    'fi' \
+    '' \
+    '# Iniciar aplicação Java' \
+    'echo "☕ Iniciando aplicação Java..."' \
+    'exec dumb-init -- java -jar /app/app.jar' \
+    > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh && \
+    chown appuser:appgroup /app/entrypoint.sh
+
 # Mudar para usuário não-root
 USER appuser:appgroup
 
-ENTRYPOINT ["dumb-init", "--", "java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 
 # === ESTÁGIO 3: DEBUG (Opcional) ===
