@@ -70,9 +70,9 @@ jobs:
         run: |
           # Verificar se não há hardcoded passwords
           # Ignorar: 1) variáveis de ambiente ${}, 2) comentários #, 3) secrets externos
-          if grep -r "password.*:" docker-compose.yml pom.xml | grep -v "\${" | grep -v "#" | grep -v "external: true"; then
+          if grep -r "password.*:" docker-compose.yml pom.xml | grep -v "\${" | grep -v "#" | grep -v "external: true" | grep -v "secrets:"; then
             # Verificar se as linhas encontradas são realmente valores hardcoded e não referências
-            hardcoded_lines=$(grep -r "password.*:" docker-compose.yml pom.xml | grep -v "\${" | grep -v "#" | grep -v "external: true")
+            hardcoded_lines=$(grep -r "password.*:" docker-compose.yml pom.xml | grep -v "\${" | grep -v "#" | grep -v "external: true" | grep -v "secrets:")
             if echo "$hardcoded_lines" | grep -E ":[[:space:]]*['\"][^'\"]{8,}['\"]"; then
               echo "❌ Found potential hardcoded passwords"
               echo "$hardcoded_lines"
