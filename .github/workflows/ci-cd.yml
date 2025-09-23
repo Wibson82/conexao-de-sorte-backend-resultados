@@ -223,8 +223,8 @@ jobs:
             exit 1
           fi
 
-          # Lista de secrets essenciais para o serviço Resultados
-          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-rabbitmq-host,conexao-de-sorte-rabbitmq-port,conexao-de-sorte-rabbitmq-username,conexao-de-sorte-rabbitmq-password,conexao-de-sorte-rabbitmq-vhost,conexao-de-sorte-jwt-secret,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port"
+          # Lista de secrets essenciais para o serviço Resultados (apenas os que existem no Azure Key Vault)
+          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port"
 
           IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
           essential_count=0
@@ -337,8 +337,8 @@ jobs:
             echo "✅ CONEXAO_DE_SORTE_DATABASE_R2DBC_URL está definido (tamanho: ${#CONEXAO_DE_SORTE_DATABASE_R2DBC_URL} caracteres)"
           fi
 
-          # Lista de secrets do Azure Key Vault (apenas os que existem)
-          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-database-host,conexao-de-sorte-database-port,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-secret,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port,conexao-de-sorte-rabbitmq-host,conexao-de-sorte-rabbitmq-port,conexao-de-sorte-rabbitmq-username,conexao-de-sorte-rabbitmq-password,conexao-de-sorte-rabbitmq-vhost"
+          # Lista unificada de secrets para Docker Swarm (deve ser idêntica ao step anterior)
+          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port"
 
           IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
           created_secrets=0
@@ -453,7 +453,7 @@ jobs:
               fi
           done
 
-          echo "✅ Total de Docker Secrets criados/processados: $created_secrets/18 (apenas os que existem no Azure Key Vault)"
+          echo "✅ Total de Docker Secrets criados/processados: $created_secrets/10 (apenas os que existem no Azure Key Vault)"
           
           # Debug do contador
           echo "📈 Debug: Valor final do contador: $created_secrets"
@@ -474,12 +474,13 @@ jobs:
             fi
           done
           
-          if [[ $created_secrets -lt 5 ]]; then
-            echo "❌ Poucos secrets criados - deploy pode falhar (mínimo 5/18)"
+          if [[ $created_secrets -lt 7 ]]; then
+            echo "❌ Poucos secrets criados - deploy pode falhar (mínimo 7/10 secrets críticos)"
             echo "❌ Secrets críticos ausentes: $critical_missing"
+            echo "🔍 Secrets necessários: database-r2dbc-url, database-username, database-password, redis-*, jwt-*, server-port"
             exit 1
           else
-            echo "✅ Sucesso: Mínimo de 5 secrets foi atingido"
+            echo "✅ Sucesso: Mínimo de 7 secrets críticos foi atingido ($created_secrets/10)"
           fi
 
       - name: 🌐 Preparar rede overlay compartilhada
