@@ -184,7 +184,7 @@ azure:
 
 # ===== SERVER CONFIGURATION =====
 server:
-  port: ${SERVER_PORT:8082}
+  port: ${SERVER_PORT:8083}
   servlet:
     context-path: /rest/v1
   compression:
