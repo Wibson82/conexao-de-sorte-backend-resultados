@@ -65,7 +65,7 @@ spring:
           issuer-uri: ${conexao-de-sorte-jwt-issuer:https://auth.conexaodesorte.com.br}
 
 server:
-  port: ${conexao-de-sorte-server-port:8092}  # Porta específica Resultados
+  port: ${SERVER_PORT:8083}  # Porta oficial Resultados
   shutdown: graceful
   
   # SSL/TLS desabilitado - Traefik gerencia terminação SSL
@@ -249,7 +249,7 @@ spring:
     password: ${conexao-de-sorte-database-password}
     
 server:
-  port: 8083
+  port: ${SERVER_PORT:8083}
   ssl:
     enabled: false
     

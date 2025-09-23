@@ -83,11 +83,11 @@ jobs:
       - name: 🔎 Validar OIDC Azure
         id: check_secrets
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
-          AZURE_KEYVAULT_ENDPOINT: ${{ secrets.AZURE_KEYVAULT_ENDPOINT }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_KEYVAULT_ENDPOINT: ${{ vars.AZURE_KEYVAULT_ENDPOINT || secrets.AZURE_KEYVAULT_ENDPOINT }}
+          AZURE_KEYVAULT_NAME: ${{ vars.AZURE_KEYVAULT_NAME || secrets.AZURE_KEYVAULT_NAME }}
         run: |
           set -Eeuo pipefail
           missing=()
@@ -201,14 +201,14 @@ jobs:
           set -Eeuo pipefail
           echo "🔐 Buscando secrets essenciais do Resultados no Key Vault..."
 
-          # Usar endpoint do Key Vault se disponível, senão usar nome
-          KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          # Usar endpoint do Key Vault se disponível, senão usar nome (migração segura)
+          KEYVAULT_ENDPOINT="${{ vars.AZURE_KEYVAULT_ENDPOINT || secrets.AZURE_KEYVAULT_ENDPOINT }}"
           if [[ -n "$KEYVAULT_ENDPOINT" ]]; then
             # Extrair o nome do Key Vault do endpoint (formato: https://nome-do-keyvault.vault.azure.net/)
             KEYVAULT_NAME=$(echo "$KEYVAULT_ENDPOINT" | sed 's|https://\(.*\)\.vault\.azure\.net/.*|\1|')
             echo "🔍 Usando Key Vault do endpoint: $KEYVAULT_NAME"
           else
-            KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
+            KEYVAULT_NAME="${{ vars.AZURE_KEYVAULT_NAME || secrets.AZURE_KEYVAULT_NAME }}"
             echo "🔍 Usando Key Vault do nome: $KEYVAULT_NAME"
           fi
 
