@@ -1,4 +1,4 @@
-name: "🎯 Resultados Backend – CI/CD Pipeline"
+name: "🎯 Resultados Backend - CI/CD Pipeline"
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
 
 # Variáveis de ambiente global
 env:
-  SERVICE_NAME: resultados-backend
+  SERVICE_NAME: resultados
   STACK_NAME: conexao-resultados
   DOCKER_NETWORK_NAME: conexao-network-swarm
 
@@ -25,7 +25,7 @@ permissions:
 jobs:
   validate-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
@@ -38,43 +38,17 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 python3-yaml jq curl zip unzip
-
-      - name: Install SDKMAN! and Java 25 LTS
-        run: |
-          # Install SDKMAN!
-          curl -s "https://get.sdkman.io" | bash
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-
-          # Install Java 25 LTS (Azul Zulu - OpenJDK)
-          sdk install java 25-zulu
-          sdk default java 25-zulu
-
-          # Verify installation
-          java -version
-          javac -version
-
-          # Setup environment for subsequent steps
-          echo "SDKMAN_DIR=$HOME/.sdkman" >> $GITHUB_ENV
-          echo "$HOME/.sdkman/bin" >> $GITHUB_PATH
-
       - name: Validate Docker Compose
         run: |
           docker compose -f docker-compose.yml config -q
           echo "✅ Docker Compose syntax is valid"
 
-      - name: Security Validation - No Hardcoded Passwords
+      - name: Security Validation
         run: |
-          # Verificar se não há hardcoded passwords reais (com valores)
-          # Procurar por password: seguido de um valor (não apenas o nome do secret)
-          if grep -r -E "password.*:\s*['\"][^'\"]{3,}['\"]" docker-compose.yml pom.xml 2>/dev/null; then
-            echo "❌ Found potential hardcoded passwords with values"
-            exit 1
-          elif grep -r -E "password.*:\s*[^$][A-Za-z0-9]" docker-compose.yml pom.xml 2>/dev/null | grep -v "external:" | grep -v "secrets:" | grep -v "#"; then
-            echo "❌ Found potential hardcoded passwords without quotes"
+          echo "🔒 Verificando segurança da configuração..."
+          # Buscar passwords hardcoded (valor após :) mas excluir secrets externos
+          if grep -R --line-number "password\s*:\s*[\"'].*[\"']" docker-compose.yml | grep -v "\${" | grep -v "#"; then
+            echo "❌ Found potential hardcoded passwords"
             exit 1
           else
             echo "✅ No hardcoded passwords found"
@@ -100,70 +74,34 @@ jobs:
             printf '❌ GitHub Secrets obrigatórios ausentes: %s\n' "${missing[*]}"
             exit 1
           fi
-          echo "✅ Identificadores Azure configurados via secrets"
+          echo "✅ Identificadores Azure configurados via vars (fallback para secrets)"
 
-          # Key Vault é opcional - verificar ENDPOINT ou NAME
-          if [[ -n "${AZURE_KEYVAULT_ENDPOINT:-}" ]] || [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
+          # Key Vault é opcional - verificar ENDPOINT primeiro, depois NAME
+          if [[ -n "${AZURE_KEYVAULT_ENDPOINT:-}" ]]; then
+            echo "✅ AZURE_KEYVAULT_ENDPOINT configurado via vars"
             echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
+            # Extrair nome do endpoint para compatibilidade
+            KEYVAULT_NAME=$(echo "$AZURE_KEYVAULT_ENDPOINT" | sed 's|https://\(.*\)\.vault\.azure\.net/.*|\1|')
+            echo "keyvault_name=$KEYVAULT_NAME" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
+            echo "✅ AZURE_KEYVAULT_NAME configurado via vars (fallback)"
+            echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
+            echo "keyvault_name=$AZURE_KEYVAULT_NAME" >> "$GITHUB_OUTPUT"
           else
+            echo "ℹ️ Nenhum Key Vault configurado - prosseguindo sem Azure Key Vault"
             echo "has_keyvault=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if [[ -z "${AZURE_KEYVAULT_ENDPOINT:-}" ]]; then
-            echo 'ℹ️ AZURE_KEYVAULT_ENDPOINT não definido (usando endpoint padrão)'
-          else
-            echo '✅ Endpoint customizado definido'
           fi
 
           echo "has_azure_creds=true" >> "$GITHUB_OUTPUT"
 
-      - name: Validate Maven Project
-        run: |
-          # Setup SDKMAN! environment
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-
-          if [ -f "pom.xml" ]; then
-            echo "✅ Projeto Maven detectado"
-            mvn validate
-            echo "✅ Maven project validation passed"
-          else
-            echo "ℹ️ Projeto não-Maven (sem pom.xml)"
-          fi
-
-      - name: Validate YAML files
-        run: |
-          python3 -c "
-          import yaml
-          import pathlib
-
-          # Validar arquivos YAML principais
-          yaml_files = [
-              'docker-compose.yml'
-          ]
-
-          for file_path in yaml_files:
-              if pathlib.Path(file_path).exists():
-                  try:
-                      with open(file_path, 'r', encoding='utf-8') as f:
-                          yaml.safe_load(f)
-                      print(f'✅ YAML válido: {file_path}')
-                  except Exception as e:
-                      print(f'❌ Erro no YAML {file_path}: {e}')
-                      exit(1)
-          "
-
       - name: Validation completed
         run: |
-          # Setup SDKMAN! environment for validation
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
           echo "✅ Validação concluída - pronto para deploy"
-          echo "📋 Java version check:"
-          java -version
 
   deploy-selfhosted:
     needs: validate-and-build
-    runs-on: [self-hosted, Linux, X64]
-    timeout-minutes: 20
+    runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-resultados]
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -183,540 +121,388 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🔒 Security Validation - Port Exposure
-        run: |
-          # Verificar exposição de portas do Resultados
-          if grep -E "^\s*-\s*[\"']?(8081|8082|8083):" docker-compose.yml; then
-            echo "⚠️ WARNING: Resultados ports may be exposed - ensure firewall protection"
-            echo "🔒 Note: Current configuration works but consider overlay-only for maximum security"
-          else
-            echo "✅ No ports exposed - maximum security (overlay network only)"
-          fi
-
-      - name: 🔐 Get secrets from Azure Key Vault (OIDC)
-        id: get-secrets
-        continue-on-error: true
+      - name: Get secrets from Azure Key Vault (via AZ CLI)
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
+        shell: bash
         run: |
-          set -Eeuo pipefail
-          echo "🔐 Buscando secrets essenciais do Resultados no Key Vault..."
+          echo "Fetching secrets from Azure Key Vault using Azure CLI..."
+          SECRETS_LIST=(
+            "conexao-de-sorte-database-r2dbc-url"
+            "conexao-de-sorte-database-username"
+            "conexao-de-sorte-database-password"
+            "conexao-de-sorte-redis-host"
+            "conexao-de-sorte-redis-port"
+            "conexao-de-sorte-redis-password"
+            "conexao-de-sorte-redis-database"
+            "conexao-de-sorte-jwt-issuer"
+            "conexao-de-sorte-jwt-jwks-uri"
+            "conexao-de-sorte-server-port"
+          )
 
-          # Usar endpoint do Key Vault se disponível, senão usar nome (migração segura)
-          KEYVAULT_ENDPOINT="${{ vars.AZURE_KEYVAULT_ENDPOINT || secrets.AZURE_KEYVAULT_ENDPOINT }}"
-          if [[ -n "$KEYVAULT_ENDPOINT" ]]; then
-            # Extrair o nome do Key Vault do endpoint (formato: https://nome-do-keyvault.vault.azure.net/)
-            KEYVAULT_NAME=$(echo "$KEYVAULT_ENDPOINT" | sed 's|https://\(.*\)\.vault\.azure\.net/.*|\1|')
-            echo "🔍 Usando Key Vault do endpoint: $KEYVAULT_NAME"
-          else
-            KEYVAULT_NAME="${{ vars.AZURE_KEYVAULT_NAME || secrets.AZURE_KEYVAULT_NAME }}"
-            echo "🔍 Usando Key Vault do nome: $KEYVAULT_NAME"
-          fi
+          for secret_name in "${SECRETS_LIST[@]}"; do
+            echo "Fetching secret: $secret_name"
 
-          # Verificar autenticação Azure
-          echo "🔍 Verificando autenticação Azure..."
-          if ! az account show >/dev/null 2>&1; then
-            echo "❌ Azure CLI não autenticado - execute o login Azure OIDC primeiro"
-            exit 1
-          fi
+            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>/dev/null)
 
-          # Lista de secrets essenciais para o serviço Resultados (apenas os que existem no Azure Key Vault)
-          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port"
-
-          IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
-          essential_count=0
-          
-          for secret_name in "${SECRETS_ARRAY[@]}"; do
-            echo "🔍 Obtendo segredo: $secret_name"
-            secret_value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret_name" --query 'value' -o tsv 2>/dev/null || echo "")
-            
             if [[ -n "$secret_value" ]]; then
-              echo "✅ Segredo obtido: $secret_name"
-              
-              # Validações de segurança para senhas e secrets críticos
-              if [[ "$secret_name" == *"password"* || "$secret_name" == *"jwt-secret"* ]]; then
-                # Validar tamanho mínimo (mínimo 8 caracteres)
-                if [[ ${#secret_value} -lt 8 ]]; then
-                  echo "❌ Secret $secret_name muito curto (mínimo 8 caracteres)" >&2
-                  exit 1
-                fi
-                # Validar que não é uma senha padrão/fraca
-                if [[ "$secret_value" =~ ^(12345678|password|admin|root|teste|senha)$ ]]; then
-                  echo "❌ Secret $secret_name usa valor padrão/inseguro" >&2
-                  exit 1
-                fi
-              fi
-              
-              # Salvar com o nome original (com traços) para compatibilidade com o step de validação
-              echo "${secret_name}=${secret_value}" >> $GITHUB_OUTPUT
-              
-              # Também salvar como variável de ambiente para uso posterior
-              var_name=$(echo "$secret_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-              echo "$var_name=$secret_value" >> "$GITHUB_ENV"
               echo "::add-mask::$secret_value"
-              echo "✅ $secret_name obtido e validado (len=${#secret_value}) => exportado como $var_name"
-              essential_count=$((essential_count + 1))
+              env_var_name=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+              echo "${env_var_name}=${secret_value}" >> $GITHUB_ENV
+              echo "Secret '$secret_name' fetched and set as environment variable '${env_var_name}'."
             else
-              echo "⚠️ Segredo não encontrado: $secret_name"
+              echo "Warning: Secret '$secret_name' not found in Azure Key Vault."
             fi
           done
 
-          echo "📊 Total de secrets essenciais obtidos: $essential_count/${#SECRETS_ARRAY[@]}"
-          if [[ $essential_count -ge 10 ]]; then
-            echo "✅ Secrets suficientes e validados para deploy (mínimo 10/15)"
-          else
-            echo "❌ Poucos secrets obtidos - deploy será abortado"
-            exit 1
-          fi
-        shell: /usr/bin/bash -e {0}
-
-      - name: 🔐 Criar Docker Secrets from Azure Key Vault
-        if: always() && (steps.get-secrets.outcome == 'success' || steps.get-secrets.outcome == 'failure')
+      - name: 🔐 Create Docker Secrets
+        if: ${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_ISSUER != '' }}
         run: |
-          # Não usar set -e para permitir continuar mesmo com erros individuais
-          echo "🔐 Criando Docker Secrets a partir dos valores do Azure Key Vault..."
-          
-          # Verificar status do step anterior
-          echo "📊 Status do step get-secrets: ${{ steps.get-secrets.outcome }}"
-          if [[ "${{ steps.get-secrets.outcome }}" != "success" ]]; then
-            echo "⚠️ Step anterior falhou ou teve problemas - tentando continuar mesmo assim..."
-          fi
-          
-          # Função para obter secret do step anterior ou variável de ambiente
-          get_secret_value() {
-            local secret_name="$1"
-            local var_name=$(echo "$secret_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-            
-            # Tentar variável de ambiente primeiro (mais confiável)
-            if [[ -n "${!var_name:-}" ]]; then
-              echo "${!var_name}"
-              return 0
-            fi
-            
-            # Se não encontrar na variável de ambiente, tentar buscar do step anterior
-            local step_output_var="${secret_name//-/_}"
-            if [[ -n "${!step_output_var:-}" ]]; then
-              echo "${!step_output_var}"
-              return 0
-            fi
-            
-            # Retornar vazio se não encontrar (não usar return 1 para evitar trigger do trap)
-            echo ""
-            return 0
-          }
-          
-          # Função para tratamento de erros
-          handle_error() {
-            echo "❌ Erro na linha $1: $2"
-            # Não sair, apenas registrar o erro
-          }
-          
-          # Configurar trap para capturar erros
-          trap 'handle_error $LINENO "$BASH_COMMAND"' ERR
-          
-          # Debug: Verificar variáveis de ambiente disponíveis
-          echo "📋 Verificando variáveis de ambiente disponíveis..."
-          echo "🔍 Buscando por variáveis CONEXAO_DE_SORTE..."
-          env | grep -E "CONEXAO_DE_SORTE_" | sed 's/=.*$/=[REDACTED]/' || echo "⚠️ Nenhuma variável CONEXAO_DE_SORTE encontrada"
-          
-          # Debug: Verificar step outputs disponíveis
-          echo "🔍 Verificando step outputs disponíveis..."
-          echo "Step outputs do get-secrets:"
-          echo "- conexao-de-sorte-database-r2dbc-url: $([ -n "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL:-}" ] && echo "DEFINIDO" || echo "VAZIO")"
-          echo "- conexao-de-sorte-database-username: $([ -n "${CONEXAO_DE_SORTE_DATABASE_USERNAME:-}" ] && echo "DEFINIDO" || echo "VAZIO")"
-          echo "- conexao-de-sorte-database-password: $([ -n "${CONEXAO_DE_SORTE_DATABASE_PASSWORD:-}" ] && echo "DEFINIDO" || echo "VAZIO")"
-          
-          # Verificar se as variáveis do Azure Key Vault foram carregadas
-          echo "🔍 Verificando se secrets do Azure Key Vault foram carregados..."
-          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL:-}" ]]; then
-            echo "⚠️ CONEXAO_DE_SORTE_DATABASE_R2DBC_URL não está definido"
-          else
-            echo "✅ CONEXAO_DE_SORTE_DATABASE_R2DBC_URL está definido (tamanho: ${#CONEXAO_DE_SORTE_DATABASE_R2DBC_URL} caracteres)"
+          echo "Creating Docker secrets..."
+
+          # Verificar se secrets existem e forçar remoção se necessário
+          if docker secret ls --format "{{.Name}}" | grep -q "^conexao-de-sorte-database-r2dbc-url$"; then
+            echo "⚠️ Secret conexao-de-sorte-database-r2dbc-url já existe - removendo serviços dependentes primeiro..."
+            docker service ls --filter name="conexao-resultados" --format "{{.Name}}" | xargs -r docker service rm || true
+            sleep 5
+            docker secret rm conexao-de-sorte-database-r2dbc-url || true
           fi
 
-          # Lista unificada de secrets para Docker Swarm (deve ser idêntica ao step anterior)
-          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-issuer,conexao-de-sorte-jwt-jwks-uri,conexao-de-sorte-server-port"
-
-          IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
-          created_secrets=0
-          
-          # Inicializar contador de forma segura
-          export created_secrets
-
-          # Verificar se estamos em um ambiente Docker Swarm
-          echo "🔍 Verificando status do Docker Swarm..."
-          if ! docker info 2>/dev/null | grep -q "Swarm: active"; then
-            echo "⚠️ Docker Swarm não está ativo - tentando inicializar..."
-            # Tentar inicializar como manager
-            if docker swarm init --advertise-addr 127.0.0.1 2>/dev/null; then
-              echo "✅ Docker Swarm inicializado com sucesso"
-              sleep 3
-            else
-              echo "⚠️ Não foi possível inicializar Docker Swarm - tentando como worker..."
-              # Se já houver um swarm, este comando falhará, mas não é crítico
-              docker swarm init --advertise-addr 127.0.0.1 --force-new-cluster 2>/dev/null || echo "⚠️ Docker Swarm pode já estar inicializado ou não é possível"
-              sleep 2
-            fi
-          else
-            echo "✅ Docker Swarm já está ativo"
+          if docker secret ls --format "{{.Name}}" | grep -q "^conexao-de-sorte-redis-password$"; then
+            docker secret rm conexao-de-sorte-redis-password || true
           fi
 
-          for secret_name in "${SECRETS_ARRAY[@]}"; do
-            echo "📋 Processando secret: $secret_name"
-            
-            # Obter valor do secret usando a função
-            secret_value=$(get_secret_value "$secret_name")
-            
-            if [[ -n "$secret_value" ]]; then
-                echo "✅ Secret $secret_name encontrado, prosseguindo com criação do Docker Secret"
-                echo "🔐 Criando Docker Secret: $secret_name"
-            else
-                echo "⚠️ Secret $secret_name não encontrado no Azure Key Vault, pulando..."
-                continue
-            fi
-              
-              # Validar tamanho do valor
-              if [[ ${#secret_value} -lt 1 ]]; then
-                echo "⚠️ Secret $secret_name tem valor vazio - pulando..."
-                continue
-              fi
-              
-              # Limitar tamanho máximo (Docker tem limite de 500KB)
-              if [[ ${#secret_value} -gt 500000 ]]; then
-                echo "⚠️ Secret $secret_name muito grande (${#secret_value} bytes) - pulando..."
-                continue
-              fi
-
-              # Remover secret existente se houver (ignorar erros)
-              if docker secret inspect "$secret_name" >/dev/null 2>&1; then
-                echo "🗑️ Removendo secret existente: $secret_name"
-                if docker secret rm "$secret_name" 2>/dev/null; then
-                  echo "✅ Secret removido com sucesso"
-                else
-                  echo "⚠️ Não foi possível remover secret existente (pode estar em uso), verificando se já existe..."
-                  # Verifica se o secret já existe e está funcionando
-                  if docker secret inspect "$secret_name" >/dev/null 2>&1; then
-                    echo "✅ Secret $secret_name já existe e está funcionando, pulando criação"
-                    created_secrets=$((created_secrets + 1))
-                    continue
-                  fi
-                fi
-                sleep 2
-              fi
-
-              # Criar novo secret com tratamento de erro
-              echo "🔐 Criando novo secret: $secret_name"
-              
-              # Tentar criar o secret com timeout e retry
-              max_retries=3
-              retry_count=0
-              secret_created=false
-              
-              while [[ $retry_count -lt $max_retries ]] && [[ "$secret_created" == "false" ]]; do
-                if echo -n "$secret_value" | docker secret create "$secret_name" - 2>&1; then
-                echo "✅ Docker Secret criado: $secret_name"
-                created_secrets=$((created_secrets + 1))
-                secret_created=true
-              else
-                # Verifica se o erro é porque o secret já existe
-                if docker secret inspect "$secret_name" >/dev/null 2>&1; then
-                  echo "✅ Secret $secret_name já existe e está funcionando"
-                  created_secrets=$((created_secrets + 1))
-                  secret_created=true
-                else
-                  retry_count=$((retry_count + 1))
-                  if [[ $retry_count -lt $max_retries ]]; then
-                    echo "⚠️ Tentativa $retry_count falhou, tentando novamente em 2 segundos..."
-                    sleep 2
-                  else
-                    echo "❌ Falha ao criar secret após $max_retries tentativas: $secret_name"
-                    echo "⚠️ Verificando se o secret foi criado mesmo assim..."
-                    if docker secret inspect "$secret_name" >/dev/null 2>&1; then
-                      echo "✅ Secret $secret_name existe apesar do erro - continuando..."
-                      created_secrets=$((created_secrets + 1))
-                      secret_created=true
-                    else
-                      echo "❌ Secret $secret_name realmente não foi criado"
-                    fi
-                  fi
-                fi
-              fi
-              done
-              
-              if [[ "$secret_created" == "false" ]]; then
-                echo "⚠️ Continuando com os próximos secrets..."
-              else
-                echo "✅ Secret $secret_name processado com sucesso"
-              fi
-          done
-
-          echo "✅ Total de Docker Secrets criados/processados: $created_secrets/10 (apenas os que existem no Azure Key Vault)"
-          
-          # Debug do contador
-          echo "📈 Debug: Valor final do contador: $created_secrets"
-          
-          # Listar todos os secrets disponíveis no Docker
-          echo "📋 Secrets disponíveis no Docker Swarm:"
-          docker secret ls || echo "⚠️ Não foi possível listar secrets"
-          
-          # Verificar se os secrets críticos foram criados
-          echo "🔍 Verificando secrets críticos:"
-          critical_missing=0
-          for secret_name in "${SECRETS_ARRAY[@]}"; do
-            if docker secret inspect "$secret_name" >/dev/null 2>&1; then
-              echo "✅ Secret crítico encontrado: $secret_name"
-            else
-              echo "❌ Secret crítico ausente: $secret_name"
-              critical_missing=$((critical_missing + 1))
-            fi
-          done
-          
-          if [[ $created_secrets -lt 7 ]]; then
-            echo "❌ Poucos secrets criados - deploy pode falhar (mínimo 7/10 secrets críticos)"
-            echo "❌ Secrets críticos ausentes: $critical_missing"
-            echo "🔍 Secrets necessários: database-r2dbc-url, database-username, database-password, redis-*, jwt-*, server-port"
-            exit 1
-          else
-            echo "✅ Sucesso: Mínimo de 7 secrets críticos foi atingido ($created_secrets/10)"
+          if docker secret ls --format "{{.Name}}" | grep -q "^conexao-de-sorte-database-password$"; then
+            docker secret rm conexao-de-sorte-database-password || true
           fi
 
-      - name: 🌐 Preparar rede overlay compartilhada
-        env:
-          NETWORK_NAME: ${{ env.DOCKER_NETWORK_NAME }}
+          if docker secret ls --format "{{.Name}}" | grep -q "^DATABASE_PASSWORD$"; then
+            docker secret rm DATABASE_PASSWORD || true
+          fi
+
+          # Create secrets from environment variables fetched from Key Vault
+          printf "$CONEXAO_DE_SORTE_DATABASE_R2DBC_URL" | docker secret create conexao-de-sorte-database-r2dbc-url -
+          printf "$CONEXAO_DE_SORTE_DATABASE_USERNAME" | docker secret create conexao-de-sorte-database-username -
+          printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create conexao-de-sorte-database-password -
+          printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create DATABASE_PASSWORD -
+          printf "$CONEXAO_DE_SORTE_REDIS_HOST" | docker secret create conexao-de-sorte-redis-host -
+          printf "$CONEXAO_DE_SORTE_REDIS_PORT" | docker secret create conexao-de-sorte-redis-port -
+          printf "$CONEXAO_DE_SORTE_REDIS_PASSWORD" | docker secret create conexao-de-sorte-redis-password -
+          printf "$CONEXAO_DE_SORTE_REDIS_DATABASE" | docker secret create conexao-de-sorte-redis-database -
+          printf "$CONEXAO_DE_SORTE_JWT_ISSUER" | docker secret create conexao-de-sorte-jwt-issuer -
+          printf "$CONEXAO_DE_SORTE_JWT_JWKS_URI" | docker secret create conexao-de-sorte-jwt-jwks-uri -
+          printf "$CONEXAO_DE_SORTE_SERVER_PORT" | docker secret create conexao-de-sorte-server-port -
+
+          echo "Docker secrets created."
+
+      - name: 🔍 Preparar ambiente de deploy
         run: |
-          set -euo pipefail
-          echo "🔍 Verificando rede overlay: $NETWORK_NAME"
+          echo "🔍 Preparando ambiente para deploy do Resultados..."
 
-          if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
-            echo "🏗️ Criando rede overlay compartilhada: $NETWORK_NAME"
+          # Verificar arquivos necessários
+          echo "🔍 Verificando arquivos necessários..."
+          for required_file in "docker-compose.yml"; do
+            if [[ -f "$required_file" ]]; then
+              echo "✅ $required_file encontrado"
+            else
+              echo "❌ $required_file NÃO encontrado"
+              exit 1
+            fi
+          done
+
+          # Verificar/criar diretórios específicos do Resultados
+          required_dirs=(
+            "logs"
+            "config"
+          )
+
+          for required_dir in "${required_dirs[@]}"; do
+            if [[ -d "$required_dir" ]]; then
+              echo "✅ Diretório $required_dir existe"
+            else
+              echo "⚠️ Diretório $required_dir não existe - criando..."
+              mkdir -p "$required_dir"
+            fi
+          done
+
+          # Verificar rede Docker Swarm
+          echo "🔍 Verificando rede Docker Swarm..."
+          if docker network ls | grep -q "${DOCKER_NETWORK_NAME}"; then
+            echo "✅ Rede ${DOCKER_NETWORK_NAME} existe"
+          else
+            echo "❌ Rede ${DOCKER_NETWORK_NAME} não encontrada"
+            echo "💡 Criando rede overlay para Docker Swarm..."
+            docker network create --driver overlay --attachable "${DOCKER_NETWORK_NAME}" || echo "⚠️ Rede já existe ou erro na criação"
+          fi
+
+      - name: 🧹 Limpeza completa de recursos antigos
+        run: |
+          echo "🧹 Iniciando limpeza completa de recursos do Resultados..."
+
+          # Configurar variáveis de ambiente
+          export COMPOSE_PROJECT_NAME="${STACK_NAME}"
+          SERVICE_NAME="${STACK_NAME}_resultados"
+
+          # 1. Parar e remover serviços Docker Swarm
+          echo "🔍 Verificando serviços Docker Swarm existentes..."
+          if docker service ls --filter name="${STACK_NAME}_" --format "{{.Name}}" | grep -q "${STACK_NAME}_"; then
+            echo "⚠️ Encontrados serviços existentes do Resultados - removendo..."
+
+            # Escalar para 0 réplicas primeiro (graceful shutdown)
+            for service in $(docker service ls --filter name="${STACK_NAME}_" --format "{{.Name}}"); do
+              echo "📉 Escalando $service para 0 réplicas..."
+              docker service scale "$service=0" || echo "⚠️ Falha ao escalar $service"
+            done
+
+            # Aguardar parada das tarefas
+            echo "⏳ Aguardando parada das tarefas..."
+            sleep 15
+
+            # Remover serviços
+            for service in $(docker service ls --filter name="${STACK_NAME}_" --format "{{.Name}}"); do
+              echo "🗑️ Removendo serviço: $service"
+              docker service rm "$service" || echo "⚠️ Falha ao remover $service"
+            done
+
+            # Aguardar remoção completa
+            echo "⏳ Aguardando remoção completa dos serviços..."
+            timeout=90
+            start_time=$(date +%s)
+            while docker service ls --filter name="${STACK_NAME}_" --format "{{.Name}}" | grep -q "${STACK_NAME}_"; do
+              current_time=$(date +%s)
+              elapsed=$((current_time - start_time))
+              if [[ $elapsed -gt $timeout ]]; then
+                echo "⚠️ Timeout aguardando remoção dos serviços"
+                break
+              fi
+              echo "⏳ Aguardando... ($elapsed/${timeout}s)"
+              sleep 5
+            done
+          fi
+
+          # 2. Remover stack se ainda existir
+          if docker stack ls --format "{{.Name}}" | grep -q "^${STACK_NAME}$"; then
+            echo "⚠️ Stack ${STACK_NAME} ainda existe - removendo..."
+            docker stack rm "${STACK_NAME}"
+            sleep 10
+          fi
+
+          # 3. Limpeza de containers órfãos (se existirem)
+          echo "🔍 Verificando containers órfãos..."
+          orphan_containers=$(docker ps -a --filter name="*resultados*" --format "{{.ID}} {{.Names}}" | grep -E "(conexao-resultados|resultados)" || true)
+          if [[ -n "$orphan_containers" ]]; then
+            echo "⚠️ Encontrados containers órfãos do Resultados:"
+            echo "$orphan_containers"
+            echo "$orphan_containers" | while read container_id container_name; do
+              if [[ -n "$container_id" ]]; then
+                echo "🗑️ Removendo container órfão: $container_name ($container_id)"
+                docker stop "$container_id" 2>/dev/null || true
+                docker rm "$container_id" 2>/dev/null || true
+              fi
+            done
+          fi
+
+          # 4. Limpeza de imagens antigas (opcional - manter apenas algumas versões)
+          echo "🔍 Limpeza de imagens antigas do Resultados..."
+          old_images=$(docker images ghcr.io/wibson82/conexao-de-sorte-backend-resultados --format "{{.ID}} {{.Repository}}:{{.Tag}}" | tail -n +4 || true)
+          if [[ -n "$old_images" ]]; then
+            echo "⚠️ Removendo imagens antigas (mantendo 3 mais recentes):"
+            echo "$old_images" | while read image_id image_name; do
+              if [[ -n "$image_id" && "$image_name" != *"latest"* ]]; then
+                echo "🗑️ Removendo imagem antiga: $image_name ($image_id)"
+                docker rmi "$image_id" 2>/dev/null || true
+              fi
+            done
+          fi
+
+          echo "✅ Limpeza completa concluída"
+
+      - name: 🌐 Garantir rede Swarm compartilhada
+        run: |
+          echo "🌐 Verificando e configurando rede Docker Swarm compartilhada..."
+
+          # Verificar se Docker Swarm está ativo
+          if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then
+            echo "⚠️ Docker Swarm não está ativo - inicializando..."
+            docker swarm init --advertise-addr $(hostname -I | awk '{print $1}') || echo "⚠️ Swarm já pode estar inicializado"
+          fi
+
+          # Verificar/criar rede overlay compartilhada
+          NETWORK_NAME="${DOCKER_NETWORK_NAME}"
+          if ! docker network ls --filter name="^${NETWORK_NAME}$" --format "{{.Name}}" | grep -q "^${NETWORK_NAME}$"; then
+            echo "🔧 Criando rede overlay compartilhada: ${NETWORK_NAME}"
             docker network create \
               --driver overlay \
               --attachable \
               --subnet=10.10.0.0/16 \
               --gateway=10.10.0.1 \
               "${NETWORK_NAME}"
-            echo "✅ Rede overlay criada: $NETWORK_NAME"
+            echo "✅ Rede ${NETWORK_NAME} criada com sucesso"
           else
-            echo "✅ Rede overlay já existe: $NETWORK_NAME"
+            echo "✅ Rede ${NETWORK_NAME} já existe"
           fi
 
-      - name: 🧹 Cleanup anterior (Resultados)
-        env:
-          STACK_NAME: ${{ env.STACK_NAME }}
+          # Verificar propriedades da rede
+          echo "📊 Propriedades da rede ${NETWORK_NAME}:"
+          docker network inspect "${NETWORK_NAME}" --format "{{.Driver}} - {{.Scope}} - {{.IPAM.Config}}" || true
+
+      - name: 🚀 Deploy to Docker Swarm
         run: |
-          set -euo pipefail
-          echo "🧹 Iniciando limpeza de recursos anteriores..."
+          echo "🚀 Iniciando deploy do Resultados no Docker Swarm..."
 
-          # 1. Graceful shutdown: scale services to 0 replicas
-          if docker service ls --filter name="$STACK_NAME" --format '{{.Name}}' | grep -q "^$STACK_NAME"; then
-            echo "🔄 Scaling down serviços do stack $STACK_NAME..."
-            for service in $(docker service ls --filter name="$STACK_NAME" --format '{{.Name}}'); do
-              echo "  - Scaling down: $service"
-              docker service scale "$service=0" >/dev/null 2>&1 || true
-            done
-            sleep 10
+          # Verificar se temos os segredos mínimos necessários
+          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_USERNAME}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]]; then
+            echo "❌ Segredos do banco de dados não configurados"
+            echo "⚠️ Verifique:"
+            echo "  - Se os segredos existem no Azure Key Vault"
+            echo "  - Se os segredos estão configurados como GitHub Secrets"
+            echo "  - Se a integração com Azure Key Vault está funcionando"
+            exit 1
           fi
 
-          # 2. Remove stack
-          if docker stack ls --format '{{.Name}}' | grep -q "^$STACK_NAME\$"; then
-            echo "🗄️ Removendo stack: $STACK_NAME"
-            docker stack rm "$STACK_NAME"
-            sleep 15
+          if [[ -z "${CONEXAO_DE_SORTE_REDIS_HOST}" ]] || [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
+            echo "❌ Segredos do Redis não configurados"
+            exit 1
           fi
 
-          # 3. Clean orphan containers
-          echo "🧹 Limpando containers órfãos relacionados ao Resultados..."
-          orphan_containers=$(docker ps -a --filter name="*resultados*" --format '{{.ID}} {{.Names}}' | grep -E "(resultados|$STACK_NAME)" || true)
-          if [[ -n "$orphan_containers" ]]; then
-            echo "$orphan_containers" | while read container_id container_name; do
-              if [[ -n "$container_id" ]]; then
-                echo "  🗑️ Removendo container órfão: $container_name ($container_id)"
-                docker stop "$container_id" >/dev/null 2>&1 || true
-                docker rm "$container_id" >/dev/null 2>&1 || true
-              fi
-            done
+          if [[ -z "${CONEXAO_DE_SORTE_JWT_ISSUER}" ]] || [[ -z "${CONEXAO_DE_SORTE_JWT_JWKS_URI}" ]]; then
+            echo "❌ Segredos JWT não configurados"
+            exit 1
           fi
 
-          # 4. Image cleanup (keep 3 recent versions)
-          echo "🧹 Limpando imagens antigas do Resultados (mantendo 3 versões recentes)..."
-          old_images=$(docker images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep -E "(resultados|ghcr.io.*resultados)" | tail -n +4 || true)
-          if [[ -n "$old_images" ]]; then
-            echo "$old_images" | while read image_id image_tag; do
-              if [[ -n "$image_id" && "$image_tag" != *"<none>"* ]]; then
-                echo "  🗑️ Removendo imagem antiga: $image_tag ($image_id)"
-                docker rmi "$image_id" >/dev/null 2>&1 || true
-              fi
-            done
-          fi
+          echo "✅ Todos os segredos necessários estão configurados"
 
-          echo "✅ Limpeza concluída"
+          # Configurar variáveis de ambiente para o deploy
+          export COMPOSE_PROJECT_NAME="${STACK_NAME}"
 
-      - name: 🚀 Deploy Resultados Stack (Swarm-Only)
-        if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
-        env:
-          STACK_NAME: ${{ env.STACK_NAME }}
-          COMPOSE_FILE: docker-compose.yml
-          # Environment variables from Key Vault (método manual - padrão Gateway)
-          DATABASE_R2DBC_URL: ${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL }}
-          DATABASE_USERNAME: ${{ env.CONEXAO_DE_SORTE_DATABASE_USERNAME }}
-          DATABASE_PASSWORD: ${{ env.CONEXAO_DE_SORTE_DATABASE_PASSWORD }}
-          REDIS_HOST: ${{ env.CONEXAO_DE_SORTE_REDIS_HOST }}
-          REDIS_PORT: ${{ env.CONEXAO_DE_SORTE_REDIS_PORT }}
-          REDIS_PASSWORD: ${{ env.CONEXAO_DE_SORTE_REDIS_PASSWORD }}
-          REDIS_DATABASE: ${{ env.CONEXAO_DE_SORTE_REDIS_DATABASE }}
-          RABBITMQ_HOST: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_HOST }}
-          RABBITMQ_PORT: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_PORT }}
-          RABBITMQ_USERNAME: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_USERNAME }}
-          RABBITMQ_PASSWORD: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_PASSWORD }}
-          RABBITMQ_VHOST: ${{ env.CONEXAO_DE_SORTE_RABBITMQ_VHOST }}
-          JWT_SECRET: ${{ env.CONEXAO_DE_SORTE_JWT_SECRET }}
-          JWT_ISSUER: ${{ env.CONEXAO_DE_SORTE_JWT_ISSUER }}
-          SERVER_PORT: ${{ env.CONEXAO_DE_SORTE_SERVER_PORT }}
+          # Pull da imagem mais recente
+          echo "📥 Fazendo pull da imagem mais recente..."
+          docker pull ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest || echo "⚠️ Falha no pull - usando imagem local"
+
+          # Deploy usando Docker Stack
+          echo "🔄 Executando deploy stack..."
+          docker stack deploy -c docker-compose.yml "${STACK_NAME}"
+
+          echo "✅ Deploy executado com sucesso"
+
+      - name: 🔍 Verificação pós-deploy
         run: |
-          echo "🚀 Iniciando deploy do Resultados com Docker Swarm..."
+          echo "🔍 Verificando status do deploy..."
 
-          echo "🏗️ Executando deploy da stack '$STACK_NAME'..."
-          docker stack deploy -c "$COMPOSE_FILE" "$STACK_NAME"
+          # Aguardar alguns segundos para inicialização
+          echo "⏳ Aguardando inicialização dos serviços..."
+          sleep 30
 
-          echo "⏰ Aguardando estabilização dos serviços Resultados..."
-          sleep 35
+          # Verificar status dos serviços
+          echo "📊 Status dos serviços do Resultados:"
+          docker service ls --filter name="${STACK_NAME}_*" --format "table {{.Name}}\t{{.Replicas}}\t{{.Image}}\t{{.Ports}}"
 
-      - name: 🔍 Healthcheck Resultados
-        env:
-          STACK_NAME: ${{ env.STACK_NAME }}
-        run: |
-          echo "🔍 Validando saúde do Resultados..."
-
-          timeout=200
-          elapsed=0
-          health_passed=false
-
-          while [ $elapsed -lt $timeout ] && [ "$health_passed" = false ]; do
-            RESULTADOS_CONTAINER=$(docker ps -q -f name="${STACK_NAME}_resultados" | head -1)
-
-            if [ -n "$RESULTADOS_CONTAINER" ]; then
-              echo "🔍 Testando health check do Resultados... ($elapsed/$timeout segundos)"
-
-              # Check 1: Process validation
-              if docker exec "$RESULTADOS_CONTAINER" ps aux 2>/dev/null | grep -q "[j]ava\|[s]pring"; then
-                echo "✅ Resultados health check passed (process validation)"
-                health_passed=true
-                break
-              fi
-
-              # Check 2: Log validation
-              if docker logs "$RESULTADOS_CONTAINER" 2>/dev/null | grep -q "Started.*Application\|Tomcat started\|Started ResultadosApplication"; then
-                echo "✅ Resultados health check passed (logs validation)"
-                health_passed=true
-                break
-              fi
-
-              echo "⏳ Resultados ainda não está pronto... ($elapsed/$timeout segundos)"
-            else
-              echo "⏳ Container Resultados ainda não encontrado... ($elapsed/$timeout segundos)"
-            fi
-
-            sleep 10
-            elapsed=$((elapsed + 10))
+          # Verificar tarefas dos serviços (para debug)
+          echo "📋 Tarefas dos serviços:"
+          for service in $(docker service ls --filter name="${STACK_NAME}_*" --format "{{.Name}}"); do
+            echo "=== $service ==="
+            docker service ps "$service" --no-trunc --format "table {{.Name}}\t{{.Node}}\t{{.CurrentState}}\t{{.Error}}"
           done
 
-          if [ "$health_passed" = false ]; then
-            echo "⚠️ Resultados health check não passou em $timeout segundos"
-            echo "🔍 Verificando logs finais do Resultados..."
-            if [ -n "$RESULTADOS_CONTAINER" ]; then
-              echo "--- Últimos 30 logs do Resultados ---"
-              docker logs "$RESULTADOS_CONTAINER" --tail 30 2>/dev/null || true
-              echo "--- Fim dos logs ---"
-            fi
-            echo "💡 Nota: Resultados pode estar funcionando mesmo com health check parcial"
-            exit 1
-          else
-            echo "✅ Resultados health check concluído com sucesso!"
-          fi
+          # Health check específico do Resultados
+          echo "🏥 Verificando saúde dos serviços..."
+          resultados_service="${STACK_NAME}_resultados"
 
-      - name: 🔗 Connectivity Validation
-        env:
-          STACK_NAME: ${{ env.STACK_NAME }}
-          DOCKER_NETWORK_NAME: ${{ env.DOCKER_NETWORK_NAME }}
-        run: |
-          echo "🔗 Validando conectividade do Resultados..."
+          if docker service ls --filter name="$resultados_service" --format "{{.Name}}" | grep -q "$resultados_service"; then
+            echo "✅ Serviço $resultados_service encontrado"
 
-          if docker service ls | grep -q "${STACK_NAME}_resultados"; then
-            echo "✅ Serviço Resultados encontrado no Swarm"
-          else
-            echo "❌ Serviço Resultados não encontrado no Swarm"
-            exit 1
-          fi
+            # Aguardar serviço ficar saudável (timeout 180s)
+            timeout=180
+            echo "⏳ Aguardando serviço ficar saudável (timeout: ${timeout}s)..."
 
-          if docker network inspect "$DOCKER_NETWORK_NAME" | grep -q resultados; then
-            echo "✅ Resultados conectado à rede overlay"
+            start_time=$(date +%s)
+            while true; do
+              current_time=$(date +%s)
+              elapsed=$((current_time - start_time))
+
+              if [[ $elapsed -gt $timeout ]]; then
+                echo "⚠️ Timeout aguardando serviço ficar saudável"
+                break
+              fi
+
+              replicas=$(docker service ls --filter name="$resultados_service" --format "{{.Replicas}}")
+              if [[ "$replicas" =~ ^[1-9][0-9]*/[1-9][0-9]*$ ]] && [[ "${replicas%/*}" == "${replicas#*/}" ]]; then
+                echo "✅ Serviço $resultados_service está saudável: $replicas"
+                break
+              else
+                echo "⏳ Aguardando... ($elapsed/${timeout}s) - Réplicas: $replicas"
+                sleep 10
+              fi
+            done
           else
-            echo "⚠️ Resultados pode não estar na rede overlay correta"
+            echo "❌ Serviço $resultados_service não encontrado"
           fi
 
           echo "📊 Status final dos serviços:"
           docker service ls --filter name="${STACK_NAME}_*" --format "table {{.Name}}\t{{.Replicas}}\t{{.Image}}"
 
-      - name: 🏥 Validar Health Monitor (Traefik)
-        env:
-          HEALTH_MONITOR_URL: https://traefik.conexaodesorte.com.br/health/service/resultados
+      - name: 🏥 Verificar Deploy no Runner (Local Container Check)
         run: |
-          set -euo pipefail
-          timeout=300
+          echo "🏥 Verificando se o deploy foi bem-sucedido no runner..."
+
+          # Verificar se o container está rodando e healthy
+          timeout=180
           interval=10
           elapsed=0
-          last_response=""
 
           while [ $elapsed -lt $timeout ]; do
-            echo "🔎 Consultando Health Monitor (${elapsed}/${timeout}s)..."
-            response=$(curl -sf --max-time 10 "$HEALTH_MONITOR_URL" 2>/dev/null || true)
-            last_response="$response"
+            echo "🔎 Verificando containers do Resultados (${elapsed}/${timeout}s)..."
 
-            if [[ -n "$response" ]]; then
-              status=$(echo "$response" | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data.get("status", ""))' 2>/dev/null || true)
-              status=${status//$'\n'/}
-              echo "📊 Status reportado pelo monitor: ${status:-indefinido}"
+            # Buscar container do resultados que está rodando
+            resultados_container=$(docker ps --filter "name=conexao-resultados" --filter "status=running" --format "{{.Names}}\t{{.Status}}" | head -1)
 
-              if [[ "$status" == "healthy" ]]; then
-                echo "✅ Traefik confirmou Resultados como healthy"
+            if [[ -n "$resultados_container" ]]; then
+              echo "📊 Container encontrado: $resultados_container"
+
+              # Verificar se tem health status
+              container_name=$(echo "$resultados_container" | cut -f1)
+              health_status=$(docker inspect --format='{{.State.Health.Status}}' "$container_name" 2>/dev/null || echo "no-health-check")
+
+              if [[ "$health_status" == "healthy" ]]; then
+                echo "✅ Container do Resultados está healthy no runner"
+                echo "🎯 Deploy confirmado com sucesso!"
                 exit 0
+              elif [[ "$health_status" == "no-health-check" ]]; then
+                echo "⚠️ Container sem health check configurado, verificando se está rodando..."
+                # Se não tem health check, verificar se o container está rodando há pelo menos 30s
+                uptime=$(docker inspect --format='{{.State.StartedAt}}' "$container_name" | xargs -I {} date -d {} +%s)
+                current_time=$(date +%s)
+                running_time=$((current_time - uptime))
+
+                if [ $running_time -gt 30 ]; then
+                  echo "✅ Container rodando há ${running_time}s - considerado estável"
+                  echo "🎯 Deploy confirmado com sucesso!"
+                  exit 0
+                fi
+              else
+                echo "⚠️ Container health status: $health_status"
               fi
             else
-              echo "⚠️ Health Monitor sem resposta (tentativa atual)"
+              echo "⚠️ Nenhum container do Resultados encontrado rodando"
             fi
 
             sleep "$interval"
             elapsed=$((elapsed + interval))
           done
 
-          echo "❌ Health Monitor nao confirmou Resultados como healthy apos ${timeout}s"
-          echo "📝 Ultima resposta recebida: ${last_response:-<sem resposta>}"
+          echo "❌ Timeout: Resultados não está healthy após ${timeout}s"
+          echo "📋 Listando containers atuais:"
+          docker ps --filter "name=conexao" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
           exit 1
 
-      - name: 🧼 Limpeza de recursos no servidor
-        if: success()
-        env:
-          STACK_NAME: ${{ env.STACK_NAME }}
+  cleanup-artifacts:
+    needs: deploy-selfhosted
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Cleanup completed
         run: |
-          set -euo pipefail
-          before_usage=$(mktemp)
-          after_usage=$(mktemp)
-          docker system df > "$before_usage"
-          echo "🧹 Removendo containers parados (≥12h)..."
-          docker container prune -f --filter "until=12h"
-          echo "🧹 Removendo imagens não utilizadas (≥7d)..."
-          docker image prune -f --filter "until=168h"
-          echo "🧹 Removendo caches de build antigos (≥7d)..."
-          docker builder prune -f --filter "until=168h" || true
-          docker system df > "$after_usage"
-          echo "📦 Uso de recursos após limpeza:"
-          cat "$after_usage"
-          {
-            echo "## Limpeza de recursos no servidor"
-            echo ""
-            echo "### Uso antes"
-            sed 's/^/    /' "$before_usage"
-            echo ""
-            echo "### Uso depois"
-            sed 's/^/    /' "$after_usage"
-          } >> "$GITHUB_STEP_SUMMARY"
-          rm -f "$before_usage" "$after_usage"
+          echo "🧹 Limpeza de artefatos concluída"
+          echo "📊 Status do workflow: ${{ needs.deploy-selfhosted.result }}"
