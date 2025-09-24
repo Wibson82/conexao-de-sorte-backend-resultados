@@ -39,7 +39,8 @@ spring:
   # R2DBC - usa secret base + parâmetros específicos do projeto
   r2dbc:
     # Secret: r2dbc:mysql://conexao-mysql:3306 + parâmetros específicos
-    url: ${conexao-de-sorte-database-r2dbc-url}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false
+    # createDatabaseIfNotExist=true permite criar o banco automaticamente
+    url: ${conexao-de-sorte-database-r2dbc-url}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false&createDatabaseIfNotExist=true
     username: ${conexao-de-sorte-database-username}
     password: ${conexao-de-sorte-database-password}
     pool:
@@ -231,7 +232,7 @@ spring:
       on-profile: prod
       
   r2dbc:
-    url: ${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
+    url: ${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false&createDatabaseIfNotExist=true}
     username: ${conexao-de-sorte-database-username}
     password: ${conexao-de-sorte-database-password}
     pool:
@@ -244,7 +245,8 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: true
     # Secret JDBC base: jdbc:mysql://conexao-mysql:3306 + parâmetros específicos
-    url: ${conexao-de-sorte-database-jdbc-url}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false
+    # createDatabaseIfNotExist=true permite criar o banco automaticamente
+    url: ${conexao-de-sorte-database-jdbc-url}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false&createDatabaseIfNotExist=true
     user: ${conexao-de-sorte-database-username}
     password: ${conexao-de-sorte-database-password}
     

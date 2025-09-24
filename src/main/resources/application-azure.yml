@@ -28,7 +28,8 @@ spring:
   # URLs JDBC são automaticamente convertidas para R2DBC
   r2dbc:
     # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
-    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}}
+    # createDatabaseIfNotExist=true permite criar o banco automaticamente
+    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false&createDatabaseIfNotExist=true}}
     username: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     pool:
@@ -44,7 +45,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
-    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false}
+    # createDatabaseIfNotExist=true permite criar o banco automaticamente
+    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://mysql-proxy:6033/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false&createDatabaseIfNotExist=true}
     user: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
 
