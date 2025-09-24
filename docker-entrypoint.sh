@@ -27,6 +27,35 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Função para ler secrets de arquivos Docker
+read_secret() {
+    local secret_name="$1"
+    local secret_file="/run/secrets/$secret_name"
+
+    if [[ -f "$secret_file" ]]; then
+        cat "$secret_file"
+    else
+        echo ""
+    fi
+}
+
+# Ler secrets dos arquivos Docker e exportar como variáveis de ambiente
+echo "🔐 Lendo secrets do Docker..."
+export CONEXAO_DE_SORTE_DATABASE_R2DBC_URL=$(read_secret "conexao-de-sorte-database-r2dbc-url")
+export CONEXAO_DE_SORTE_DATABASE_USERNAME=$(read_secret "conexao-de-sorte-database-username")
+export CONEXAO_DE_SORTE_DATABASE_PASSWORD=$(read_secret "conexao-de-sorte-database-password")
+export CONEXAO_DE_SORTE_REDIS_HOST=$(read_secret "conexao-de-sorte-redis-host")
+export CONEXAO_DE_SORTE_REDIS_PORT=$(read_secret "conexao-de-sorte-redis-port")
+export CONEXAO_DE_SORTE_REDIS_PASSWORD=$(read_secret "conexao-de-sorte-redis-password")
+export CONEXAO_DE_SORTE_REDIS_DATABASE=$(read_secret "conexao-de-sorte-redis-database")
+export CONEXAO_DE_SORTE_JWT_ISSUER=$(read_secret "conexao-de-sorte-jwt-issuer")
+export CONEXAO_DE_SORTE_JWT_JWKS_URI=$(read_secret "conexao-de-sorte-jwt-jwks-uri")
+export CONEXAO_DE_SORTE_SERVER_PORT=$(read_secret "conexao-de-sorte-server-port")
+
+# Definir valores padrão para variáveis de host/porta se não estiverem nos secrets
+export CONEXAO_DE_SORTE_DATABASE_HOST="${CONEXAO_DE_SORTE_DATABASE_HOST:-conexao-mysql}"
+export CONEXAO_DE_SORTE_DATABASE_PORT="${CONEXAO_DE_SORTE_DATABASE_PORT:-3306}"
+
 # Função de log
 log() {
     echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] [RESULTADOS]${NC} $1"

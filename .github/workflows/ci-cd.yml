@@ -46,13 +46,25 @@ jobs:
       - name: Security Validation
         run: |
           echo "🔒 Verificando segurança da configuração..."
-          # Buscar passwords hardcoded (valor após :) mas excluir secrets externos
-          if grep -R --line-number "password\s*:\s*[\"'].*[\"']" docker-compose.yml | grep -v "\${" | grep -v "#"; then
-            echo "❌ Found potential hardcoded passwords"
-            exit 1
-          else
-            echo "✅ No hardcoded passwords found"
+          # Verificar se há senhas hardcoded (não em secrets externos)
+          hardcoded_passwords=$(grep -R --line-number "password\s*:\s*" docker-compose.yml | grep -v "\${" | grep -v "#" | grep -v "external:" || true)
+
+          if [[ -n "$hardcoded_passwords" ]]; then
+            # Verificar se as linhas com password são seguidas por external: true
+            while IFS= read -r line; do
+              line_num=$(echo "$line" | cut -d: -f1)
+              next_line_num=$((line_num + 1))
+              next_line=$(sed -n "${next_line_num}p" docker-compose.yml)
+
+              if [[ ! "$next_line" =~ external:[[:space:]]*true ]]; then
+                echo "❌ Found potential hardcoded password at line $line_num: $line"
+                echo "❌ Next line: $next_line"
+                exit 1
+              fi
+            done <<< "$hardcoded_passwords"
           fi
+
+          echo "✅ No hardcoded passwords found - all passwords use external secrets"
 
       - name: 🔎 Validar OIDC Azure
         id: check_secrets
@@ -159,40 +171,40 @@ jobs:
         run: |
           echo "Creating Docker secrets..."
 
-          # Verificar se secrets existem e forçar remoção se necessário
-          if docker secret ls --format "{{.Name}}" | grep -q "^conexao-de-sorte-database-r2dbc-url$"; then
-            echo "⚠️ Secret conexao-de-sorte-database-r2dbc-url já existe - removendo serviços dependentes primeiro..."
+          # Função para criar secret apenas se não existir
+          create_secret_if_not_exists() {
+            local secret_name="$1"
+            local secret_value="$2"
+
+            if docker secret ls --format "{{.Name}}" | grep -q "^${secret_name}$"; then
+              echo "ℹ️ Secret ${secret_name} já existe - reutilizando"
+            else
+              printf "$secret_value" | docker secret create "$secret_name" -
+              echo "✅ Secret ${secret_name} criado"
+            fi
+          }
+
+          # Remover apenas serviços específicos do resultados se necessário
+          if docker service ls --filter name="conexao-resultados" --format "{{.Name}}" | grep -q "conexao-resultados"; then
+            echo "⚠️ Removendo serviços do resultados para atualização..."
             docker service ls --filter name="conexao-resultados" --format "{{.Name}}" | xargs -r docker service rm || true
             sleep 5
-            docker secret rm conexao-de-sorte-database-r2dbc-url || true
           fi
 
-          if docker secret ls --format "{{.Name}}" | grep -q "^conexao-de-sorte-redis-password$"; then
-            docker secret rm conexao-de-sorte-redis-password || true
-          fi
+          # Criar secrets apenas se não existirem (evita conflitos com outros serviços)
+          create_secret_if_not_exists "conexao-de-sorte-database-r2dbc-url" "$CONEXAO_DE_SORTE_DATABASE_R2DBC_URL"
+          create_secret_if_not_exists "conexao-de-sorte-database-username" "$CONEXAO_DE_SORTE_DATABASE_USERNAME"
+          create_secret_if_not_exists "conexao-de-sorte-database-password" "$CONEXAO_DE_SORTE_DATABASE_PASSWORD"
+          create_secret_if_not_exists "DATABASE_PASSWORD" "$CONEXAO_DE_SORTE_DATABASE_PASSWORD"
+          create_secret_if_not_exists "conexao-de-sorte-redis-host" "$CONEXAO_DE_SORTE_REDIS_HOST"
+          create_secret_if_not_exists "conexao-de-sorte-redis-port" "$CONEXAO_DE_SORTE_REDIS_PORT"
+          create_secret_if_not_exists "conexao-de-sorte-redis-password" "$CONEXAO_DE_SORTE_REDIS_PASSWORD"
+          create_secret_if_not_exists "conexao-de-sorte-redis-database" "$CONEXAO_DE_SORTE_REDIS_DATABASE"
+          create_secret_if_not_exists "conexao-de-sorte-jwt-issuer" "$CONEXAO_DE_SORTE_JWT_ISSUER"
+          create_secret_if_not_exists "conexao-de-sorte-jwt-jwks-uri" "$CONEXAO_DE_SORTE_JWT_JWKS_URI"
+          create_secret_if_not_exists "conexao-de-sorte-server-port" "$CONEXAO_DE_SORTE_SERVER_PORT"
 
-          if docker secret ls --format "{{.Name}}" | grep -q "^conexao-de-sorte-database-password$"; then
-            docker secret rm conexao-de-sorte-database-password || true
-          fi
-
-          if docker secret ls --format "{{.Name}}" | grep -q "^DATABASE_PASSWORD$"; then
-            docker secret rm DATABASE_PASSWORD || true
-          fi
-
-          # Create secrets from environment variables fetched from Key Vault
-          printf "$CONEXAO_DE_SORTE_DATABASE_R2DBC_URL" | docker secret create conexao-de-sorte-database-r2dbc-url -
-          printf "$CONEXAO_DE_SORTE_DATABASE_USERNAME" | docker secret create conexao-de-sorte-database-username -
-          printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create conexao-de-sorte-database-password -
-          printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create DATABASE_PASSWORD -
-          printf "$CONEXAO_DE_SORTE_REDIS_HOST" | docker secret create conexao-de-sorte-redis-host -
-          printf "$CONEXAO_DE_SORTE_REDIS_PORT" | docker secret create conexao-de-sorte-redis-port -
-          printf "$CONEXAO_DE_SORTE_REDIS_PASSWORD" | docker secret create conexao-de-sorte-redis-password -
-          printf "$CONEXAO_DE_SORTE_REDIS_DATABASE" | docker secret create conexao-de-sorte-redis-database -
-          printf "$CONEXAO_DE_SORTE_JWT_ISSUER" | docker secret create conexao-de-sorte-jwt-issuer -
-          printf "$CONEXAO_DE_SORTE_JWT_JWKS_URI" | docker secret create conexao-de-sorte-jwt-jwks-uri -
-          printf "$CONEXAO_DE_SORTE_SERVER_PORT" | docker secret create conexao-de-sorte-server-port -
-
-          echo "Docker secrets created."
+          echo "Docker secrets process completed."
 
       - name: 🔍 Preparar ambiente de deploy
         run: |
@@ -374,9 +386,21 @@ jobs:
           # Configurar variáveis de ambiente para o deploy
           export COMPOSE_PROJECT_NAME="${STACK_NAME}"
 
-          # Pull da imagem mais recente
-          echo "📥 Fazendo pull da imagem mais recente..."
-          docker pull ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest || echo "⚠️ Falha no pull - usando imagem local"
+          # Tentar pull da imagem mais recente
+          echo "📥 Tentando pull da imagem mais recente..."
+          if docker pull ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest; then
+            echo "✅ Pull da imagem realizado com sucesso"
+          else
+            echo "⚠️ Falha no pull - tentando build local..."
+            if [[ -f "Dockerfile" ]]; then
+              echo "🔨 Fazendo build da imagem localmente..."
+              docker build -t ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest .
+              echo "✅ Build local concluído"
+            else
+              echo "❌ Dockerfile não encontrado - não é possível fazer build"
+              exit 1
+            fi
+          fi
 
           # Deploy usando Docker Stack
           echo "🔄 Executando deploy stack..."
