@@ -1,100 +1,69 @@
+version: '3.8'
 
 services:
-  resultados:
-    image: ${RESULTADOS_IMAGE:-ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest}
-    environment:
-      SPRING_PROFILES_ACTIVE: "prod"
-      RESULTADOS_LOG_LEVEL: "INFO"
-      LOGGING_LEVEL_ROOT: "INFO"
-      # Database Configuration
-      DATABASE_HOST: "conexao-mysql"
-      DATABASE_PORT: "3306"
-      DATABASE_NAME: "conexao_de_sorte"
-      DATABASE_USERNAME: "conexao"
-      # Secrets via Docker Secrets
-      DATABASE_PASSWORD_FILE: "/run/secrets/DATABASE_PASSWORD"
-    secrets:
-      - conexao-de-sorte-database-r2dbc-url
-      - conexao-de-sorte-database-username
-      - conexao-de-sorte-database-password
-      - DATABASE_PASSWORD
-      - conexao-de-sorte-redis-host
-      - conexao-de-sorte-redis-port
-      - conexao-de-sorte-redis-password
-      - conexao-de-sorte-redis-database
-      - conexao-de-sorte-jwt-issuer
-      - conexao-de-sorte-jwt-jwks-uri
-      - conexao-de-sorte-server-port
-    networks:
-      - conexao-network-swarm
-    volumes:
-      - resultados-logs:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+  conexao-de-sorte-backend-resultados:
+    image: ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest
+    container_name: conexao-de-sorte-backend-resultados
+    
+    # OTIMIZAÇÃO HOSTINGER KVM 2
     deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
       resources:
         limits:
-          memory: 1G
+          cpus: '0.4'
+          memory: 400m
         reservations:
-          memory: 512M
-    # ==========================================================================
-    # 🏷️ LABELS PARA INTEGRAÇÃO COM GATEWAY - NOVO PADRÃO
-    # ==========================================================================
-    labels:
-      # Habilitar descoberta pelo Gateway (não mais diretamente pelo Traefik)
-      - "traefik.enable=false"  # Gateway será o ponto de entrada
-      - "gateway.enable=true"   # Descoberta pelo Gateway
-      - "gateway.service.name=conexao-resultados"
-      - "gateway.service.port=8083"
-      - "gateway.service.path=/rest/resultados"
-      - "gateway.health.path=/actuator/health"
+          cpus: '0.1'
+          memory: 128m
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+    
+    # Configurações otimizadas
+    restart: unless-stopped
+    
+    # Health check leve
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    
+    # Variáveis de ambiente JVM otimizadas
+    environment:
+      - JAVA_OPTS=-Xms128m -Xmx350m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication
+      - SERVER_PORT=8081
+      - SPRING_PROFILES_ACTIVE=prod
+    
+    # Secrets via Docker Swarm
+    secrets:
+      - conexao-de-sorte-database-password
+      - conexao-de-sorte-redis-password
+      - conexao-de-sorte-jwt-secret
+    
+    # Networks
+    networks:
+      - conexao-network-swarm
+    
+    # Logging otimizado
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-      # Network para comunicação interna
-      - "com.docker.network.name=conexao-network-swarm"
-
-      # Metadata do serviço
-      - "org.opencontainers.image.title=Conexão de Sorte - Resultados"
-      - "org.opencontainers.image.description=Microserviço de resultados e loterias"
-      - "org.opencontainers.image.version=1.0.0"
-      - "microservice.type=business"
-      - "microservice.category=results"
-
-volumes:
-  resultados-logs:
-
-networks:
-  conexao-network-swarm:
-    name: conexao-network-swarm
-    external: true
-
+# Secrets externos
 secrets:
-  conexao-de-sorte-database-r2dbc-url:
-    external: true
-  conexao-de-sorte-database-username:
-    external: true
   conexao-de-sorte-database-password:
-    external: true
-  conexao-de-sorte-redis-host:
-    external: true
-  conexao-de-sorte-redis-port:
     external: true
   conexao-de-sorte-redis-password:
     external: true
-  conexao-de-sorte-redis-database:
+  conexao-de-sorte-jwt-secret:
     external: true
-  conexao-de-sorte-jwt-issuer:
+
+# Networks externos
+networks:
+  conexao-network-swarm:
     external: true
-  conexao-de-sorte-jwt-jwks-uri:
-    external: true
-  conexao-de-sorte-server-port:
-    external: true
-  DATABASE_PASSWORD:
-    external: true
-    name: DATABASE_PASSWORD
