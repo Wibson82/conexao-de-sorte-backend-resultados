@@ -226,12 +226,12 @@ jobs:
           
           # Criar rede se não existir
           echo "🌐 Creating Docker network if it doesn't exist..."
-          docker network create conexao-network 2>/dev/null || true
+          docker network create conexao-network-swarm 2>/dev/null || true
           
           echo "🚀 Starting gateway-microservice container..."
           docker run -d \
             --name "gateway-microservice" \
-            --network conexao-network \
+            --network conexao-network-swarm \
             --restart unless-stopped \
             -p "8090:8080" \
             --health-cmd="curl -f http://localhost:8080/actuator/health/readiness && curl -f http://localhost:8080/actuator/health/liveness || exit 1" \
@@ -249,7 +249,7 @@ jobs:
             -e AZURE_KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" \
             -e AZURE_KEYVAULT_ENABLED="true" \
             --label "traefik.enable=true" \
-            --label "traefik.docker.network=conexao-network" \
+            --label "traefik.docker.network=conexao-network-swarm" \
             --label "traefik.http.routers.gateway.rule=Host(\`gateway.conexaodesorte.com.br\`)" \
             --label "traefik.http.routers.gateway.entrypoints=websecure" \
             --label "traefik.http.routers.gateway.tls.certresolver=letsencrypt" \
