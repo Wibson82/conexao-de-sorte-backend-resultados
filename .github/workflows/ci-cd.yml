@@ -184,15 +184,17 @@ jobs:
             VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
 
       - name: "🔐 Azure Login (OIDC)"
+        id: azure_login
         if: needs.validate-and-build.outputs.has_azure_creds == 'true'
         uses: azure/login@v2
+        continue-on-error: true
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: "🔑 Load Azure Key Vault Secrets"
-        if: needs.validate-and-build.outputs.has_keyvault == 'true'
+        if: needs.validate-and-build.outputs.has_keyvault == 'true' && steps.azure_login.outcome == 'success'
         uses: azure/get-keyvault-secrets@v1
         with:
           keyvault: ${{ secrets.AZURE_KEYVAULT_NAME }}
@@ -212,7 +214,7 @@ jobs:
           echo "🚀 Starting deployment for ${{ env.SERVICE_NAME }}..."
 
           # Set environment variables from Key Vault
-          if [[ "${{ needs.validate-and-build.outputs.has_keyvault }}" == "true" ]]; then
+          if [[ "${{ needs.validate-and-build.outputs.has_keyvault }}" == "true" && -n "${{ steps.keyvault.outputs.conexao-de-sorte-database-r2dbc-url }}" ]]; then
             export CONEXAO_DE_SORTE_DATABASE_R2DBC_URL="${{ steps.keyvault.outputs.conexao-de-sorte-database-r2dbc-url }}"
             export CONEXAO_DE_SORTE_DATABASE_USERNAME="${{ steps.keyvault.outputs.conexao-de-sorte-database-username }}"
             export CONEXAO_DE_SORTE_DATABASE_PASSWORD="${{ steps.keyvault.outputs.conexao-de-sorte-database-password }}"
