@@ -127,7 +127,7 @@ jobs:
       - name: 🔑 Buscar segredos no Azure Key Vault
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
         env:
-          KEYVAULT_NAME: ${{ needs.validate-and-build.outputs.keyvault_name }}
+          KEYVAULT_NAME: ${{ needs.validate-and-build.outputs.keyvault_endpoint }}
         run: |
           set -Eeuo pipefail
           if [[ -z "${KEYVAULT_NAME}" ]]; then
