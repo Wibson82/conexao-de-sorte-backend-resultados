@@ -41,6 +41,7 @@ jobs:
     outputs:
       has_keyvault: ${{ steps.check_secrets.outputs.has_keyvault }}
       has_azure_creds: ${{ steps.check_secrets.outputs.has_azure_creds }}
+      keyvault_name: ${{ steps.check_secrets.outputs.keyvault_name }}
 
     steps:
       - name: "📥 Checkout Repository"
@@ -108,22 +109,39 @@ jobs:
 
       - name: "🔍 Check Azure Secrets Availability"
         id: check_secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_KEYVAULT_ENDPOINT: ${{ secrets.AZURE_KEYVAULT_URL }}
+          AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
         run: |
-          if [[ -n "${{ secrets.AZURE_CLIENT_ID }}" ]] && [[ -n "${{ secrets.AZURE_TENANT_ID }}" ]]; then
-            echo "has_azure_creds=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Azure credentials available"
-          else
-            echo "has_azure_creds=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ Azure credentials not available"
+          set -Eeuo pipefail
+          missing=()
+          for var in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [[ -z "${!var:-}" ]]; then
+              missing+=("$var")
+            fi
+          done
+          if (( ${#missing[@]} )); then
+            printf '❌ GitHub Secrets obrigatórios ausentes: %s\n' "${missing[*]}"
+            exit 1
           fi
+          echo "has_azure_creds=true" >> "$GITHUB_OUTPUT"
+          echo "✅ Credenciais Azure presentes"
 
-          if [[ -n "${{ secrets.AZURE_KEYVAULT_URL }}" ]]; then
-            echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Key Vault configuration available"
+          keyvault_name=""
+          if [[ -n "${AZURE_KEYVAULT_ENDPOINT:-}" ]]; then
+            keyvault_name=$(echo "$AZURE_KEYVAULT_ENDPOINT" | sed 's|https://\(.*\)\.vault\.azure\.net.*|\1|')
+          elif [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
+            keyvault_name="$AZURE_KEYVAULT_NAME"
           else
-            echo "has_keyvault=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ Key Vault not configured"
+            echo "❌ Nenhum Key Vault configurado"
+            exit 1
           fi
+          echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
+          echo "keyvault_name=$keyvault_name" >> "$GITHUB_OUTPUT"
+          echo "✅ Key Vault detectado: ${keyvault_name}"
 
   # ============================================================================
   # 🚀 JOB 2: BUILD, PUSH & DEPLOY (SELF-HOSTED)
@@ -134,7 +152,6 @@ jobs:
     timeout-minutes: 25
     needs: validate-and-build
     if: github.ref == 'refs/heads/main'
-    environment: production
 
     steps:
       - name: "📥 Checkout Repository"
@@ -184,46 +201,98 @@ jobs:
             VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
 
       - name: "🔐 Azure Login (OIDC)"
-        id: azure_login
-        if: needs.validate-and-build.outputs.has_azure_creds == 'true'
         uses: azure/login@v2
-        continue-on-error: true
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: "🔑 Load Azure Key Vault Secrets"
-        if: needs.validate-and-build.outputs.has_keyvault == 'true' && steps.azure_login.outcome == 'success'
-        uses: azure/get-keyvault-secrets@v1
-        with:
-          keyvault: ${{ secrets.AZURE_KEYVAULT_NAME }}
-          secrets: |
-            conexao-de-sorte-database-r2dbc-url
-            conexao-de-sorte-database-username
-            conexao-de-sorte-database-password
-            conexao-de-sorte-redis-host
-            conexao-de-sorte-redis-port
-            conexao-de-sorte-redis-password
-            conexao-de-sorte-jwt-secret
-            conexao-de-sorte-jwt-issuer
+      - name: "✅ Validar sessão Azure"
+        run: |
+          echo "🔍 Validando sessão Azure..."
+          az account show >/dev/null 2>&1 || { echo "❌ Azure CLI não autenticado"; exit 1; }
+          echo "✅ Subscription ativa: $(az account show --query id -o tsv)"
+
+      - name: "🔑 Carregar segredos do Azure Key Vault"
         id: keyvault
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.76.0
+          inlineScript: |
+            set -Eeuo pipefail
+            KEYVAULT_NAME='${{ needs.validate-and-build.outputs.keyvault_name }}'
+            echo "🔐 Lendo segredos do Key Vault ${KEYVAULT_NAME}"
+            SECRETS=(
+              conexao-de-sorte-database-r2dbc-url
+              conexao-de-sorte-database-jdbc-url
+              conexao-de-sorte-database-username
+              conexao-de-sorte-database-password
+              conexao-de-sorte-redis-host
+              conexao-de-sorte-redis-port
+              conexao-de-sorte-redis-password
+              conexao-de-sorte-redis-database
+              conexao-de-sorte-jwt-secret
+              conexao-de-sorte-jwt-issuer
+              conexao-de-sorte-jwt-jwks-uri
+              conexao-de-sorte-jwt-refresh-token-validity
+              conexao-de-sorte-jwt-access-token-validity
+              conexao-de-sorte-jwt-cleanup-interval
+            )
+            for secret_name in "${SECRETS[@]}"; do
+              value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret_name" --query value -o tsv 2>/dev/null || true)
+              if [[ -z "$value" ]]; then
+                echo "❌ Secret $secret_name ausente"
+                exit 1
+              fi
+              env_name=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+              echo "${env_name}=${value}" >> $GITHUB_ENV
+              echo "::add-mask::${value}"
+            done
+            echo "✅ Segredos carregados"
+
+      - name: "🗄️ Garantir secrets do Docker Swarm"
+        run: |
+          set -Eeuo pipefail
+          ensure_secret() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "$value" ]]; then
+              echo "❌ Valor não fornecido para o secret $name"
+              exit 1
+            fi
+            if docker secret ls --format '{{.Name}}' | grep -q "^${name}$"; then
+              docker secret rm "$name" >/dev/null 2>&1 || true
+            fi
+            printf "%s" "$value" | docker secret create "$name" - >/dev/null
+            echo "✅ Secret ${name} disponível"
+          }
+          ensure_secret "conexao-de-sorte-database-username" "${CONEXAO_DE_SORTE_DATABASE_USERNAME}"
+          ensure_secret "conexao-de-sorte-database-password" "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}"
+          ensure_secret "conexao-de-sorte-database-r2dbc-url" "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}"
+          ensure_secret "conexao-de-sorte-database-jdbc-url" "${CONEXAO_DE_SORTE_DATABASE_JDBC_URL}"
+          ensure_secret "conexao-de-sorte-redis-password" "${CONEXAO_DE_SORTE_REDIS_PASSWORD}"
+          ensure_secret "conexao-de-sorte-jwt-secret" "${CONEXAO_DE_SORTE_JWT_SECRET}"
+
+      - name: "📁 Preparar ambiente"
+        run: |
+          mkdir -p logs
+          [[ -f docker-compose.yml ]] || { echo "❌ docker-compose.yml não encontrado"; exit 1; }
+          if ! docker network ls --filter name="^${DOCKER_NETWORK_NAME}$" --format '{{.Name}}' | grep -q "${DOCKER_NETWORK_NAME}"; then
+            docker network create --driver overlay --attachable "${DOCKER_NETWORK_NAME}"
+          fi
 
       - name: "🚀 Deploy Stack"
         run: |
           echo "🚀 Starting deployment for ${{ env.SERVICE_NAME }}..."
 
-          # Set environment variables from Key Vault
-          if [[ "${{ needs.validate-and-build.outputs.has_keyvault }}" == "true" && -n "${{ steps.keyvault.outputs.conexao-de-sorte-database-r2dbc-url }}" ]]; then
-            export CONEXAO_DE_SORTE_DATABASE_R2DBC_URL="${{ steps.keyvault.outputs.conexao-de-sorte-database-r2dbc-url }}"
-            export CONEXAO_DE_SORTE_DATABASE_USERNAME="${{ steps.keyvault.outputs.conexao-de-sorte-database-username }}"
-            export CONEXAO_DE_SORTE_DATABASE_PASSWORD="${{ steps.keyvault.outputs.conexao-de-sorte-database-password }}"
-            export CONEXAO_DE_SORTE_REDIS_HOST="${{ steps.keyvault.outputs.conexao-de-sorte-redis-host }}"
-            export CONEXAO_DE_SORTE_REDIS_PORT="${{ steps.keyvault.outputs.conexao-de-sorte-redis-port }}"
-            export CONEXAO_DE_SORTE_REDIS_PASSWORD="${{ steps.keyvault.outputs.conexao-de-sorte-redis-password }}"
-            export CONEXAO_DE_SORTE_JWT_SECRET="${{ steps.keyvault.outputs.conexao-de-sorte-jwt-secret }}"
-            export CONEXAO_DE_SORTE_JWT_ISSUER="${{ steps.keyvault.outputs.conexao-de-sorte-jwt-issuer }}"
-          fi
+          export CONEXAO_DE_SORTE_DATABASE_R2DBC_URL="${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}"
+          export CONEXAO_DE_SORTE_DATABASE_USERNAME="${CONEXAO_DE_SORTE_DATABASE_USERNAME}"
+          export CONEXAO_DE_SORTE_DATABASE_PASSWORD="${CONEXAO_DE_SORTE_DATABASE_PASSWORD}"
+          export CONEXAO_DE_SORTE_REDIS_HOST="${CONEXAO_DE_SORTE_REDIS_HOST}"
+          export CONEXAO_DE_SORTE_REDIS_PORT="${CONEXAO_DE_SORTE_REDIS_PORT}"
+          export CONEXAO_DE_SORTE_REDIS_PASSWORD="${CONEXAO_DE_SORTE_REDIS_PASSWORD}"
+          export CONEXAO_DE_SORTE_JWT_SECRET="${CONEXAO_DE_SORTE_JWT_SECRET}"
+          export CONEXAO_DE_SORTE_JWT_ISSUER="${CONEXAO_DE_SORTE_JWT_ISSUER}"
 
           # Configure deployment
           export COMPOSE_PROJECT_NAME="${{ env.STACK_NAME }}"

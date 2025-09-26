@@ -45,7 +45,7 @@ jobs:
       - name: Security Validation
         run: |
           echo "🔍 Verificando senha hardcoded em docker-compose.yml..."
-          if grep -R --line-number "password\s*:\s*" docker-compose.yml | grep -v "\${" | grep -v "#" | grep -v "external:"; then
+          if grep -nE "password\s*:\s*[^[:space:]]+" docker-compose.yml | grep -v "\${" | grep -v "#" | grep -v "external"; then
             echo "❌ Encontrada senha potencialmente hardcoded"
             exit 1
           fi
