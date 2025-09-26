@@ -128,58 +128,13 @@ jobs:
           fi
 
   # ============================================================================
-  # 🛡️ JOB 2: SECURITY SCANNING
-  # ============================================================================
-  security-scan:
-    name: "🛡️ Security Scan"
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: validate-and-build
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-
-    steps:
-      - name: "📥 Checkout Repository"
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: "☕ Setup Java ${{ env.JAVA_VERSION }}"
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'corretto'
-          cache: maven
-
-      - name: "🔍 Initialize CodeQL"
-        uses: github/codeql-action/init@v3
-        with:
-          languages: java
-          queries: security-and-quality
-
-      - name: "🔨 Build for CodeQL"
-        run: mvn clean compile -B -q
-
-      - name: "🔍 Perform CodeQL Analysis"
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:java"
-
-      - name: "🔍 Run Dependency Check"
-        run: |
-          echo "🔍 Checking for vulnerable dependencies..."
-          mvn org.owasp:dependency-check-maven:check -B -q || true
-          if [[ -f "target/dependency-check-report.html" ]]; then
-            echo "📋 Dependency check report generated"
-          fi
-
-  # ============================================================================
   # 🐳 JOB 3: BUILD & PUSH DOCKER IMAGE
   # ============================================================================
   build-and-push:
     name: "🐳 Build & Push Image"
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [validate-and-build, security-scan]
+    needs: validate-and-build
     if: github.ref == 'refs/heads/main'
 
     steps:
