@@ -2,15 +2,18 @@
 set -eu
 
 log() {
-  printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
+    printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
 }
 
 SECRETS_DIR=${SECRETS_DIR:-/run/secrets}
 R2DBC_FILE="$SECRETS_DIR/spring.r2dbc.url"
 JDBC_FILE="$SECRETS_DIR/spring.flyway.url"
 
+# Garantir diretório de logs para RollingFileAppender
+mkdir -p /app/logs
+
 has_nc() {
-  command -v nc >/dev/null 2>&1
+    command -v nc >/dev/null 2>&1
 }
 
 can_connect() {

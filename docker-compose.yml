@@ -38,6 +38,9 @@ services:
     # Secrets via Docker Swarm
     secrets:
       - conexao-de-sorte-database-password
+      - conexao-de-sorte-database-username
+      - conexao-de-sorte-database-r2dbc-url
+      - conexao-de-sorte-database-jdbc-url
       - conexao-de-sorte-redis-password
       - conexao-de-sorte-jwt-secret
 
@@ -55,6 +58,12 @@ services:
 # Secrets externos
 secrets:
   conexao-de-sorte-database-password:
+    external: true
+  conexao-de-sorte-database-username:
+    external: true
+  conexao-de-sorte-database-r2dbc-url:
+    external: true
+  conexao-de-sorte-database-jdbc-url:
     external: true
   conexao-de-sorte-redis-password:
     external: true
