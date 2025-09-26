@@ -41,8 +41,6 @@ jobs:
     outputs:
       has_keyvault: ${{ steps.check_secrets.outputs.has_keyvault }}
       has_azure_creds: ${{ steps.check_secrets.outputs.has_azure_creds }}
-      image_tag: ${{ steps.meta.outputs.tags }}
-      image_digest: ${{ steps.build.outputs.digest }}
 
     steps:
       - name: "📥 Checkout Repository"
@@ -128,18 +126,22 @@ jobs:
           fi
 
   # ============================================================================
-  # 🐳 JOB 3: BUILD & PUSH DOCKER IMAGE
+  # 🚀 JOB 2: BUILD, PUSH & DEPLOY (SELF-HOSTED)
   # ============================================================================
-  build-and-push:
-    name: "🐳 Build & Push Image"
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  release-and-deploy:
+    name: "🚀 Build, Push & Deploy"
+    runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-resultados]
+    timeout-minutes: 25
     needs: validate-and-build
     if: github.ref == 'refs/heads/main'
+    environment: production
 
     steps:
       - name: "📥 Checkout Repository"
         uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 1
 
       - name: "🐳 Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
@@ -180,24 +182,6 @@ jobs:
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             VCS_REF=${{ github.sha }}
             VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
-
-  # ============================================================================
-  # 🚀 JOB 4: DEPLOY TO SELF-HOSTED
-  # ============================================================================
-  deploy-selfhosted:
-    name: "🚀 Deploy to Self-Hosted"
-    runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-resultados]
-    timeout-minutes: 15
-    needs: [validate-and-build, build-and-push]
-    if: github.ref == 'refs/heads/main'
-    environment: production
-
-    steps:
-      - name: "📥 Checkout Repository"
-        uses: actions/checkout@v4
-        with:
-          clean: true
-          fetch-depth: 1
 
       - name: "🔐 Azure Login (OIDC)"
         if: needs.validate-and-build.outputs.has_azure_creds == 'true'
@@ -276,14 +260,14 @@ jobs:
           echo "📋 Check logs: docker service logs ${{ env.STACK_NAME }}_${{ env.SERVICE_NAME }}"
 
   # ============================================================================
-  # 📊 JOB 5: POST-DEPLOYMENT MONITORING
+  # 📊 JOB 3: POST-DEPLOYMENT MONITORING
   # ============================================================================
   post-deployment:
     name: "📊 Post-Deployment"
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: deploy-selfhosted
-    if: always() && needs.deploy-selfhosted.result != 'cancelled'
+    needs: release-and-deploy
+    if: always() && needs.release-and-deploy.result != 'cancelled'
 
     steps:
       - name: "📊 Deployment Summary"
@@ -291,11 +275,11 @@ jobs:
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Stack**: ${{ env.STACK_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ needs.deploy-selfhosted.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ needs.release-and-deploy.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ needs.deploy-selfhosted.result }}" == "success" ]]; then
+          if [[ "${{ needs.release-and-deploy.result }}" == "success" ]]; then
             echo "✅ Deployment completed successfully" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Deployment failed or was skipped" >> $GITHUB_STEP_SUMMARY
