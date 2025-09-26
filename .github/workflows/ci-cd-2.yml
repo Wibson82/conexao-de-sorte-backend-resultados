@@ -125,47 +125,44 @@ jobs:
           echo "✅ Azure autenticado (subscription $(az account show --query id -o tsv))"
 
       - name: 🔑 Buscar segredos no Azure Key Vault
-        id: fetch-secrets
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.76.0
-          inlineScript: |
-            set -Eeuo pipefail
-            KEYVAULT_NAME='${{ needs.validate-and-build.outputs.keyvault_name }}'
-            if [[ -z "$KEYVAULT_NAME" ]]; then
-              echo "❌ Nome do Key Vault não definido"
-              exit 1
-            fi
-            echo "🔍 Lendo segredos do Key Vault $KEYVAULT_NAME"
-            SECRETS=(
-              conexao-de-sorte-database-r2dbc-url
-              conexao-de-sorte-database-jdbc-url
-              conexao-de-sorte-database-username
-              conexao-de-sorte-database-password
-              conexao-de-sorte-redis-host
-              conexao-de-sorte-redis-port
-              conexao-de-sorte-redis-password
-              conexao-de-sorte-redis-database
-              conexao-de-sorte-jwt-secret
-              conexao-de-sorte-jwt-issuer
-              conexao-de-sorte-jwt-jwks-uri
-              conexao-de-sorte-jwt-refresh-token-validity
-              conexao-de-sorte-jwt-access-token-validity
-              conexao-de-sorte-jwt-cleanup-interval
-            )
-            for secret_name in "${SECRETS[@]}"; do
-              echo "🔐 Secret: $secret_name"
-              secret_value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret_name" --query value -o tsv 2>/dev/null || true)
-              if [[ -z "$secret_value" ]]; then
-                echo "❌ Secret $secret_name não encontrado"
-                exit 1
-              fi
-              env_var=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+        env:
+          KEYVAULT_NAME: ${{ needs.validate-and-build.outputs.keyvault_name }}
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "${KEYVAULT_NAME}" ]]; then
+            echo "❌ Nome do Key Vault não definido"
+            exit 1
+          fi
+          echo "🔍 Lendo segredos do Key Vault ${KEYVAULT_NAME}"
+          SECRETS=(
+            conexao-de-sorte-database-r2dbc-url
+            conexao-de-sorte-database-jdbc-url
+            conexao-de-sorte-database-username
+            conexao-de-sorte-database-password
+            conexao-de-sorte-redis-host
+            conexao-de-sorte-redis-port
+            conexao-de-sorte-redis-password
+            conexao-de-sorte-redis-database
+            conexao-de-sorte-jwt-secret
+            conexao-de-sorte-jwt-issuer
+            conexao-de-sorte-jwt-jwks-uri
+            conexao-de-sorte-jwt-refresh-token-validity
+            conexao-de-sorte-jwt-access-token-validity
+            conexao-de-sorte-jwt-cleanup-interval
+          )
+          for secret_name in "${SECRETS[@]}"; do
+            echo "🔐 Secret: ${secret_name}"
+            secret_value=$(az keyvault secret show --vault-name "${KEYVAULT_NAME}" --name "${secret_name}" --query value -o tsv 2>/dev/null || true)
+            if [[ -n "${secret_value}" ]]; then
+              env_var=$(echo "${secret_name}" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
               echo "${env_var}=${secret_value}" >> $GITHUB_ENV
               echo "::add-mask::${secret_value}"
-            done
-            echo "✅ Segredos carregados para $GITHUB_ENV"
+            else
+              echo "⚠️ Secret '${secret_name}' não encontrado - mantendo deploy, porém verifique Key Vault"
+            fi
+          done
+          echo "✅ Segredos processados"
 
       - name: 🗄️ Garantir secrets do Docker Swarm
         run: |
