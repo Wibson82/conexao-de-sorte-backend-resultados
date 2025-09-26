@@ -19,7 +19,7 @@ env:
   SERVICE_NAME: resultados
   STACK_NAME: conexao-resultados
   DOCKER_NETWORK_NAME: conexao-network-swarm
-  JAVA_VERSION: '21'
+  JAVA_VERSION: '25'
   MAVEN_OPTS: '-Xmx1024m -XX:MaxMetaspaceSize=256m'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/resultados
@@ -43,27 +43,27 @@ jobs:
       has_azure_creds: ${{ steps.check_secrets.outputs.has_azure_creds }}
       image_tag: ${{ steps.meta.outputs.tags }}
       image_digest: ${{ steps.build.outputs.digest }}
-    
+
     steps:
       - name: "📥 Checkout Repository"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for better analysis
-          
+
       - name: "☕ Setup Java ${{ env.JAVA_VERSION }}"
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'corretto'
           cache: maven
-          
+
       - name: "🔧 Setup Maven"
         run: |
           echo "📋 Maven version:"
           mvn --version
           echo "🔧 Configuring Maven settings..."
           mkdir -p ~/.m2
-          
+
       - name: "🔍 Validate Project Structure"
         run: |
           echo "📁 Validating project structure..."
@@ -76,7 +76,7 @@ jobs:
               exit 1
             fi
           done
-          
+
       - name: "🔨 Maven Compile & Test"
         run: |
           echo "🔨 Compiling project..."
@@ -85,7 +85,7 @@ jobs:
           mvn test -B -q
           echo "📦 Packaging application..."
           mvn package -DskipTests -B -q
-          
+
       - name: "🐳 Validate Docker Configuration"
         run: |
           echo "🐳 Validating Dockerfile..."
@@ -93,7 +93,7 @@ jobs:
           echo "🐳 Validating docker-compose.yml..."
           docker compose -f docker-compose.yml config -q
           echo "✅ Docker configuration is valid"
-          
+
       - name: "🔒 Security Validation"
         run: |
           echo "🔒 Checking for security issues..."
@@ -107,7 +107,7 @@ jobs:
             echo "⚠️ Security-related TODOs found - review required"
           fi
           echo "✅ Basic security validation passed"
-          
+
       - name: "🔍 Check Azure Secrets Availability"
         id: check_secrets
         run: |
@@ -118,7 +118,7 @@ jobs:
             echo "has_azure_creds=false" >> "$GITHUB_OUTPUT"
             echo "⚠️ Azure credentials not available"
           fi
-          
+
           if [[ -n "${{ secrets.AZURE_KEYVAULT_URL }}" ]]; then
             echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
             echo "✅ Key Vault configuration available"
@@ -136,34 +136,34 @@ jobs:
     timeout-minutes: 10
     needs: validate-and-build
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    
+
     steps:
       - name: "📥 Checkout Repository"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       - name: "☕ Setup Java ${{ env.JAVA_VERSION }}"
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'corretto'
           cache: maven
-          
+
       - name: "🔍 Initialize CodeQL"
         uses: github/codeql-action/init@v3
         with:
           languages: java
           queries: security-and-quality
-          
+
       - name: "🔨 Build for CodeQL"
         run: mvn clean compile -B -q
-        
+
       - name: "🔍 Perform CodeQL Analysis"
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:java"
-          
+
       - name: "🔍 Run Dependency Check"
         run: |
           echo "🔍 Checking for vulnerable dependencies..."
@@ -181,21 +181,21 @@ jobs:
     timeout-minutes: 20
     needs: [validate-and-build, security-scan]
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: "📥 Checkout Repository"
         uses: actions/checkout@v4
-        
+
       - name: "🐳 Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
-        
+
       - name: "🔐 Login to Container Registry"
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: "🏷️ Extract Metadata"
         id: meta
         uses: docker/metadata-action@v5
@@ -206,7 +206,7 @@ jobs:
             type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
-            
+
       - name: "🔨 Build and Push Docker Image"
         id: build
         uses: docker/build-push-action@v5
@@ -236,14 +236,14 @@ jobs:
     needs: [validate-and-build, build-and-push]
     if: github.ref == 'refs/heads/main'
     environment: production
-    
+
     steps:
       - name: "📥 Checkout Repository"
         uses: actions/checkout@v4
         with:
           clean: true
           fetch-depth: 1
-          
+
       - name: "🔐 Azure Login (OIDC)"
         if: needs.validate-and-build.outputs.has_azure_creds == 'true'
         uses: azure/login@v2
@@ -251,7 +251,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          
+
       - name: "🔑 Load Azure Key Vault Secrets"
         if: needs.validate-and-build.outputs.has_keyvault == 'true'
         uses: azure/get-keyvault-secrets@v1
@@ -267,11 +267,11 @@ jobs:
             conexao-de-sorte-jwt-secret
             conexao-de-sorte-jwt-issuer
         id: keyvault
-        
+
       - name: "🚀 Deploy Stack"
         run: |
           echo "🚀 Starting deployment for ${{ env.SERVICE_NAME }}..."
-          
+
           # Set environment variables from Key Vault
           if [[ "${{ needs.validate-and-build.outputs.has_keyvault }}" == "true" ]]; then
             export CONEXAO_DE_SORTE_DATABASE_R2DBC_URL="${{ steps.keyvault.outputs.conexao-de-sorte-database-r2dbc-url }}"
@@ -283,30 +283,30 @@ jobs:
             export CONEXAO_DE_SORTE_JWT_SECRET="${{ steps.keyvault.outputs.conexao-de-sorte-jwt-secret }}"
             export CONEXAO_DE_SORTE_JWT_ISSUER="${{ steps.keyvault.outputs.conexao-de-sorte-jwt-issuer }}"
           fi
-          
+
           # Configure deployment
           export COMPOSE_PROJECT_NAME="${{ env.STACK_NAME }}"
           export IMAGE_TAG="latest"
-          
+
           # Pull latest image
           echo "📥 Pulling latest image..."
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || echo "⚠️ Pull failed, will use local build"
-          
+
           # Deploy using Docker Stack
           echo "🔄 Deploying stack..."
           docker stack deploy -c docker-compose.yml "${{ env.STACK_NAME }}"
-          
+
           echo "✅ Deployment completed successfully"
-          
+
       - name: "🏥 Health Check"
         run: |
           echo "🏥 Performing health check..."
           sleep 30  # Wait for service to start
-          
+
           # Check service status
           echo "📊 Service status:"
           docker stack services "${{ env.STACK_NAME }}" || true
-          
+
           # Try to reach health endpoint
           for i in {1..5}; do
             if curl -f -s "http://localhost:8087/actuator/health" > /dev/null; then
@@ -316,7 +316,7 @@ jobs:
             echo "⏳ Attempt $i/5 failed, waiting..."
             sleep 10
           done
-          
+
           echo "⚠️ Health check failed, but deployment may still be starting"
           echo "📋 Check logs: docker service logs ${{ env.STACK_NAME }}_${{ env.SERVICE_NAME }}"
 
@@ -329,7 +329,7 @@ jobs:
     timeout-minutes: 5
     needs: deploy-selfhosted
     if: always() && needs.deploy-selfhosted.result != 'cancelled'
-    
+
     steps:
       - name: "📊 Deployment Summary"
         run: |
@@ -339,7 +339,7 @@ jobs:
           echo "- **Status**: ${{ needs.deploy-selfhosted.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ needs.deploy-selfhosted.result }}" == "success" ]]; then
             echo "✅ Deployment completed successfully" >> $GITHUB_STEP_SUMMARY
           else

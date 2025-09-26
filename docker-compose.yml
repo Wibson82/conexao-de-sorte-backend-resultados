@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   conexao-de-sorte-backend-resultados:
     image: ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest
     container_name: conexao-de-sorte-backend-resultados
-    
+
     # OTIMIZAÇÃO HOSTINGER KVM 2
     deploy:
       resources:
@@ -19,10 +17,10 @@ services:
         delay: 10s
         max_attempts: 3
         window: 60s
-    
+
     # Configurações otimizadas
     restart: unless-stopped
-    
+
     # Health check leve
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
@@ -30,23 +28,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 90s
-    
+
     # Variáveis de ambiente JVM otimizadas
     environment:
       - JAVA_OPTS=-Xms128m -Xmx350m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication
       - SERVER_PORT=8081
       - SPRING_PROFILES_ACTIVE=prod
-    
+
     # Secrets via Docker Swarm
     secrets:
       - conexao-de-sorte-database-password
       - conexao-de-sorte-redis-password
       - conexao-de-sorte-jwt-secret
-    
+
     # Networks
     networks:
       - conexao-network-swarm
-    
+
     # Logging otimizado
     logging:
       driver: "json-file"
