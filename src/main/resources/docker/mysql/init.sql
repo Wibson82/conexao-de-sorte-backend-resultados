@@ -71,13 +71,13 @@ INSERT IGNORE INTO resultados (horario, primeiro, segundo, terceiro, quarto, qui
 ('18:00', '02', '14', '26', '35', '46', '57', '68', '248', DATE_SUB(CURDATE(), INTERVAL 1 DAY)),
 ('21:00', '09', '16', '27', '31', '42', '53', '64', '242', DATE_SUB(CURDATE(), INTERVAL 1 DAY));
 
-ALTER TABLE resultados
+ALTER TABLE conexao_de_sorte.resultados
   ROW_FORMAT=DYNAMIC,
   STATS_PERSISTENT=1,
   STATS_AUTO_RECALC=1;
 
 -- Analisar tabela para otimizar estatísticas
-ANALYZE TABLE resultados;
+ANALYZE TABLE conexao_de_sorte.resultados;
 
 -- Criar usuário específico para a aplicação (se não existir)
 -- A senha deve ser fornecida via variável de ambiente (ex.: DB_PASSWORD)

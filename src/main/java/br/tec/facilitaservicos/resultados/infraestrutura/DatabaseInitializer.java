@@ -56,8 +56,9 @@ public class DatabaseInitializer {
                     return Mono.empty();
                 })
             )
-            .doOnError(e -> log.log(java.util.logging.Level.SEVERE, "Erro na inicialização do banco: {0}", e.getMessage()))
+            .doOnError(e -> log.log(java.util.logging.Level.WARNING, "Erro na inicialização do banco (será tentado novamente): {0}", e.getMessage()))
             .doOnComplete(() -> log.info("Inicialização do banco concluída."))
+            .onErrorComplete()
             .subscribe();
         };
     }
