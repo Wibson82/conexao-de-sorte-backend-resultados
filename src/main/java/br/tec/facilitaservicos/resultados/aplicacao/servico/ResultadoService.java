@@ -24,7 +24,7 @@ import java.util.UUID;
 
 /**
  * Serviço reativo para operações de Resultados
- * 
+ *
  * @author Sistema de Migração R2DBC
  * @version 1.0
  * @since 2024
@@ -48,7 +48,7 @@ public class ResultadoService {
     @Value("${pagination.max-size:100}")
     private int tamanhoMaximo = TAMANHO_MAXIMO_DEFAULT;
 
-    public ResultadoService(RepositorioResultadoR2dbc repositorio, 
+    public ResultadoService(RepositorioResultadoR2dbc repositorio,
                            ResultadoMapper mapper,
                            WebClient.Builder webClientBuilder) {
         this.repositorio = repositorio;
@@ -68,7 +68,7 @@ public class ResultadoService {
         // Validar e ajustar parâmetros
         final int paginaFinal = Math.max(pagina, PAGINA_MINIMA);
         final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, Math.max(tamanhoMaximo, TAMANHO_MINIMO));
-        
+
         Sort sort = criarOrdenacao(ordenacao);
         Pageable pageable = PageRequest.of(paginaFinal, tamanhoFinal, sort);
 
@@ -78,7 +78,7 @@ public class ResultadoService {
         if (periodo != null && periodo > 0) {
             LocalDate dataInicio = LocalDate.now().minusDays(periodo);
             LocalDate dataFim = LocalDate.now();
-            
+
             resultados = repositorio.findByPeriodo(dataInicio, dataFim, pageable)
                 .map(mapper::paraDto);
             totalElements = repositorio.countByPeriodo(dataInicio, dataFim);
@@ -112,7 +112,7 @@ public class ResultadoService {
         final int limiteRanking = Math.clamp(limite != null ? limite : TAMANHO_MINIMO, TAMANHO_MINIMO, LIMITE_MAXIMO_RANKING);
 
         Flux<Object[]> estatisticas;
-        
+
         if (temporada != null && temporada > 0) {
             LocalDate dataInicio = LocalDate.now().minusDays(temporada);
             LocalDate dataFim = LocalDate.now();
@@ -122,7 +122,7 @@ public class ResultadoService {
         }
 
         AtomicInteger posicao = new AtomicInteger(1);
-        
+
         return estatisticas
             .map(row -> {
                 String numero = (String) row[0];
@@ -139,7 +139,7 @@ public class ResultadoService {
     public Mono<EstatisticasDto> buscarEstatisticas() {
         Mono<Long> totalResultados = repositorio.countTotal();
         Mono<Long> totalSorteios = totalResultados.map(total -> total * 7); // 7 números por resultado
-        
+
         Mono<Tuple2<LocalDate, LocalDate>> periodo = Mono.zip(
             repositorio.findResultadoMaisAntigo().map(r -> r.getDataResultado()),
             repositorio.findResultadoMaisRecente().map(r -> r.getDataResultado())
@@ -161,7 +161,7 @@ public class ResultadoService {
                 return Mono.zip(
                     numerosMaisFrequentes.collectList(),
                     horariosAtivos.collectList()
-                ).map(data -> 
+                ).map(data ->
                     EstatisticasDto.completas(
                         total, sorteios, inicio, fim,
                         data.getT1(), null, data.getT2()
@@ -179,23 +179,13 @@ public class ResultadoService {
     public Mono<PaginacaoDto<ResultadoDto>> buscarResultadosHoje(int pagina, int tamanho) {
         final int paginaFinal = Math.max(pagina, PAGINA_MINIMA);
         final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, Math.max(tamanhoMaximo, TAMANHO_MINIMO));
-        
+
         Pageable pageable = PageRequest.of(paginaFinal, tamanhoFinal);
 
         return Mono.zip(
             repositorio.findResultadosDeHoje(pageable).map(mapper::paraDto).collectList(),
             repositorio.countByDataResultado(LocalDate.now())
         ).map(tuple -> PaginacaoDto.criar(tuple.getT1(), paginaFinal, tamanhoFinal, tuple.getT2()));
-    }
-
-    /**
-     * Busca último resultado por horário
-     * @param horario Horário
-     * @return Último resultado do horário
-     */
-    public Mono<ResultadoDto> buscarUltimoPorHorario(String horario) {
-        return repositorio.findUltimoResultadoPorHorario(horario)
-            .map(mapper::paraDto);
     }
 
     /**
@@ -218,8 +208,8 @@ public class ResultadoService {
         String campo = partes[0].trim();
         String direcao = partes.length > 1 ? partes[1].trim() : "desc";
 
-        Sort.Direction direction = "asc".equalsIgnoreCase(direcao) 
-            ? Sort.Direction.ASC 
+        Sort.Direction direction = "asc".equalsIgnoreCase(direcao)
+            ? Sort.Direction.ASC
             : Sort.Direction.DESC;
 
         return Sort.by(direction, campo);
@@ -233,11 +223,11 @@ public class ResultadoService {
             .map(br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc::getHorario)
             .distinct();
     }
-    
+
     // ============================================================================
     // 🌐 MÉTODOS PARA APIS PÚBLICAS E LOTERIAS
     // ============================================================================
-    
+
     /**
      * Busca resultados públicos com filtros.
      */
@@ -267,13 +257,13 @@ public class ResultadoService {
             query = repositorio.findAllPaginado(pageable);
             count = repositorio.count();
         }
-        
+
         return Mono.zip(
             query.map(mapper::paraDto).collectList(),
             count
         ).map(tuple -> PaginacaoDto.criar(tuple.getT1(), paginaFinal, tamanhoFinal, tuple.getT2()));
     }
-    
+
     /**
      * Busca resultado por horário e data.
      */
@@ -281,7 +271,7 @@ public class ResultadoService {
         return repositorio.findByHorarioAndDataResultado(horario, data)
             .map(mapper::paraDto);
     }
-    
+
     /**
      * Dispara extração ETL via Scheduler.
      */
@@ -293,7 +283,7 @@ public class ResultadoService {
             "data", data,
             "jobId", jobId
         );
-        
+
         return webClient.post()
             .uri("/jobs/loterias/etl")
             .bodyValue(request)
@@ -302,7 +292,7 @@ public class ResultadoService {
             .map(response -> (String) response.get("jobId"))
             .onErrorReturn(jobId); // Retorna jobId mesmo se falhar
     }
-    
+
     /**
      * Lista modalidades disponíveis.
      */
@@ -317,7 +307,7 @@ public class ResultadoService {
             Map.of("codigo", "federal", "nome", "Federal")
         );
     }
-    
+
     /**
      * Último resultado por horário.
      */

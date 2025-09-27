@@ -2,7 +2,7 @@
 # 🌱 APPLICATION.YML TEMPLATE PADRONIZADO - MICROSSERVIÇOS CONEXÃO DE SORTE
 # ============================================================================
 # Template otimizado para todos os microsserviços backend com:
-# - Spring Boot 3.5.5 configurações
+# - Spring Boot 3.5.6 configurações
 # - Secrets management via Docker Secrets
 # - Observabilidade completa (Prometheus + Jaeger)
 # - Configurações de segurança padronizadas
@@ -37,7 +37,7 @@ server:
 # ========================================
 spring:
   config:
-    import: 
+    import:
       - optional:configtree:/run/secrets/
       - optional:file:./config/
   application:
@@ -156,9 +156,9 @@ management:
         enabled: true
     env:
       show-values: when-authorized
-  metrics:
+  prometheus:
     export:
-      prometheus:
+      metrics:
         enabled: ${METRICS_ENABLED:true}
     distribution:
       percentiles-histogram:
@@ -242,7 +242,7 @@ app:
     metrics-collection: ${FEATURE_METRICS:true}
     circuit-breaker: ${FEATURE_CIRCUIT_BREAKER:true}
     rate-limiting: ${FEATURE_RATE_LIMITING:true}
-  
+
   # JWT Configuration
   jwt:
     access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600}
@@ -250,7 +250,7 @@ app:
     cleanup-interval: ${JWT_CLEANUP_INTERVAL:300}
     key-vault:
       enabled: ${conexao-de-sorte-jwt-keyvault-enabled:false}
-  
+
   # Rate limiting
   rate-limit:
     default-requests-per-minute: ${RATE_LIMIT_DEFAULT:60}
@@ -259,7 +259,7 @@ app:
         requests-per-minute: 30
       "/api/**":
         requests-per-minute: 100
-  
+
   # Cache configuration
   cache:
     ttl-default: ${CACHE_TTL_DEFAULT:300s}
@@ -284,22 +284,22 @@ spring:
   config:
     activate:
       on-profile: dev
-  
+
   # Development database (H2 in-memory for testing)
   r2dbc:
     url: r2dbc:h2:mem:///conexao-resultados_dev?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
-    password: 
-  
+    password:
+
   flyway:
     enabled: false  # Disable in dev with H2
-  
+
   # Development Redis (embedded or local)
   data:
     redis:
       host: localhost
       port: 6379
-      password: 
+      password:
       database: 0
 
 # Development logging (more verbose)

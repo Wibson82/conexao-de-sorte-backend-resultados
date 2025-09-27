@@ -15,7 +15,7 @@
 - **Runner**: `[self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-resultados]`
 
 ### **Tecnologias Específicas:**
-- Spring Boot 3.5.5 + Spring WebFlux (reativo)
+- Spring Boot 3.5.6 + Spring WebFlux (reativo)
 - R2DBC MySQL (persistência reativa)
 - Redis (cache inteligente de resultados)
 - Scheduler (cálculos automáticos)
@@ -36,7 +36,7 @@
 id (Long PK, AUTO_INCREMENT)
 horario (String)           -- Horário do sorteio
 primeiro (String)          -- 1º prêmio
-segundo (String)           -- 2º prêmio  
+segundo (String)           -- 2º prêmio
 terceiro (String)          -- 3º prêmio
 quarto (String)            -- 4º prêmio
 quinto (String)            -- 5º prêmio
@@ -180,7 +180,7 @@ cache:
     max-entries: 1000
     eviction: LRU
   ranking:
-    ttl: 900s           # 15 minutos  
+    ttl: 900s           # 15 minutos
     max-entries: 100
     eviction: LRU
 ```
@@ -216,19 +216,19 @@ resultados:
   max-numeros: 7
   validacao-soma: true
   historico-dias: 365
-  
+
 # Cache Configuration
 cache:
   resultados-ttl: PT5M
   ranking-ttl: PT15M
   estatisticas-ttl: PT30M
-  
+
 # Premiação
 premiacao:
   auto-credit: true
   delay-seconds: 30
   retry-attempts: 3
-  
+
 # Scheduler
 scheduler:
   calculo-ranking: "0 */15 * * * *"  # A cada 15min
@@ -387,7 +387,7 @@ curl http://localhost:8083/actuator/metrics/cache.gets
 # Ranking update (15 min)
 0 */15 * * * * → Atualizar ranking
 
-# Cache cleanup (daily 2AM)  
+# Cache cleanup (daily 2AM)
 0 0 2 * * * → Limpeza cache
 
 # Backup results (weekly)
@@ -402,6 +402,6 @@ curl http://localhost:8083/actuator/metrics/cache.gets
 
 ---
 
-**📅 Última Atualização**: Setembro 2025  
-**🏷️ Versão**: 1.0  
+**📅 Última Atualização**: Setembro 2025
+**🏷️ Versão**: 1.0
 **🏆 Criticidade**: ALTA - Core business logic da plataforma

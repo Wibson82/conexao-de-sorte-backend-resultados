@@ -12,9 +12,9 @@ import jakarta.validation.constraints.NotNull;
 /**
  * Entidade base reativa para auditoria automática.
  * Fornece campos de criação e modificação para entidades R2DBC.
- * 
- * Compatível com Spring Boot 3.5.5 e Java 25 LTS.
- * 
+ *
+ * Compatível com Spring Boot 3.5.6 e Java 25 LTS.
+ *
  * @author Sistema de Migração R2DBC
  * @version 1.0
  * @since 2024
@@ -43,7 +43,7 @@ public abstract class ReactiveAuditableEntity {
 
     /**
      * Obtém a data/hora de criação da entidade.
-     * 
+     *
      * @return data/hora de criação
      */
     public LocalDateTime getCriadoEm() {
@@ -52,7 +52,7 @@ public abstract class ReactiveAuditableEntity {
 
     /**
      * Define a data/hora de criação da entidade.
-     * 
+     *
      * @param criadoEm data/hora de criação
      */
     public void setCriadoEm(LocalDateTime criadoEm) {
@@ -61,7 +61,7 @@ public abstract class ReactiveAuditableEntity {
 
     /**
      * Obtém a data/hora da última modificação da entidade.
-     * 
+     *
      * @return data/hora da última modificação
      */
     public LocalDateTime getAtualizadoEm() {
@@ -70,7 +70,7 @@ public abstract class ReactiveAuditableEntity {
 
     /**
      * Define a data/hora da última modificação da entidade.
-     * 
+     *
      * @param atualizadoEm data/hora da última modificação
      */
     public void setAtualizadoEm(LocalDateTime atualizadoEm) {
@@ -87,7 +87,7 @@ public abstract class ReactiveAuditableEntity {
 
     /**
      * Verifica se a entidade foi criada recentemente (últimas 24 horas).
-     * 
+     *
      * @return true se foi criada nas últimas 24 horas
      */
     public boolean isCriadaRecentemente() {
@@ -99,7 +99,7 @@ public abstract class ReactiveAuditableEntity {
 
     /**
      * Verifica se a entidade foi modificada recentemente (últimas 24 horas).
-     * 
+     *
      * @return true se foi modificada nas últimas 24 horas
      */
     public boolean isModificadaRecentemente() {

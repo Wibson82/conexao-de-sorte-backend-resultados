@@ -7,7 +7,7 @@
 ## 🎯 **METADADOS DO MICROSERVIÇO**
 - **Nome:** conexao-de-sorte-backend-resultados
 - **Responsabilidade:** Resultados de loteria, estatísticas, rankings
-- **Tecnologias:** Spring Boot 3.5.5, WebFlux, R2DBC, Java 25 LTS
+- **Tecnologias:** Spring Boot 3.5.6, WebFlux, R2DBC, Java 25 LTS
 - **Porta:** 8082
 - **Banco de Dados:** `conexao_sorte_resultados` (novo, dedicado)
 - **Última Atualização:** 2025-01-17
@@ -24,7 +24,7 @@
 ```yaml
 r2dbc:
   url: ${DB_URL:...conexao_de_sorte}     # ❌ Nome errado
-  username: ${DB_USER:resultados_user}   # ❌ Variável errada  
+  username: ${DB_USER:resultados_user}   # ❌ Variável errada
   password: ${DB_PASSWORD:}              # ❌ Não chegava
 flyway:
   url: ${DB_URL:jdbc:...}                # ❌ R2DBC URL no Flyway
@@ -46,7 +46,7 @@ flyway:
 - Flyway precisa de URL JDBC fixa (não R2DBC)
 
 ### 🌩️ **2. Spring Cloud Azure Incompatibilidade**
-**Problema:** `Spring Boot [3.5.5] is not compatible with Spring Cloud release train`
+**Problema:** `Spring Boot [3.5.6] is not compatible with Spring Cloud release train`
 **Solução:** `spring.cloud.compatibility-verifier.enabled: false`
 
 ### 🔐 **3. Azure Key Vault Endpoint Hardcoded**
@@ -83,7 +83,7 @@ spring:
 - Use `${AZURE_KEYVAULT_NAME:}` para permitir diferentes Key Vaults
 - Valores hardcoded impedem deployment em diferentes ambientes (dev/staging/prod)
 - **INSTRUÇÃO PARA AGENTES DE IA:** Sempre use variáveis de ambiente para configurações do Azure
-**Causa:** Spring Cloud Azure 5.18.0 + Spring Boot 3.5.5
+**Causa:** Spring Cloud Azure 5.18.0 + Spring Boot 3.5.6
 
 ### 🔐 **4. Configuração OIDC e Service Principal (2025-01-17)**
 **Problema CRÍTICO:** Service Principal não configurado corretamente para GitHub Actions
@@ -151,7 +151,7 @@ az keyvault secret set --vault-name kv-conexao-de-sorte --name conexao-de-sorte-
 
 ### ❌ **Primeira Conexão com Banco**
 **Status:** ⚠️ PENDENTE - banco `conexao_sorte_resultados` precisa ser criado
-**Action Required:** 
+**Action Required:**
 1. Criar novo banco `conexao_sorte_resultados`
 2. Manter estrutura atual do banco principal sem alteração
 3. Migrar dados específicos de resultados (se necessário)
@@ -163,7 +163,7 @@ az keyvault secret set --vault-name kv-conexao-de-sorte --name conexao-de-sorte-
 
 ### ❌ **Flyway vs R2DBC URLs**
 **Erro Comum:** Usar mesma URL para Flyway e R2DBC
-**Solução:** 
+**Solução:**
 - R2DBC: `r2dbc:mysql://...`
 - Flyway: `jdbc:mysql://...`
 
@@ -180,7 +180,7 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
 
-# Flyway (migrations)  
+# Flyway (migrations)
 spring:
   flyway:
     url: jdbc:mysql://host/conexao_sorte_resultados  # JDBC fixo
