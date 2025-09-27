@@ -156,7 +156,7 @@ ENV LOG_FILE=/app/logs/application.log
 
 # Health check nativo
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${MANAGEMENT_SERVER_PORT}/actuator/health || exit 1
+    CMD curl -f http://localhost:${SERVER_PORT}/actuator/health || exit 1
 
 # Expor portas
 EXPOSE 8087 ${MANAGEMENT_SERVER_PORT}
