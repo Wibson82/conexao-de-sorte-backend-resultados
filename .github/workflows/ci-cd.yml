@@ -86,17 +86,14 @@ jobs:
         run: |
           echo "🔑 Obtendo secrets do projeto Resultados do Azure Key Vault..."
 
-          # Secrets essenciais para o projeto Resultados
-          # Obter URLs base do banco e corrigir hostname para Docker Swarm
+          # Secrets essenciais para o projeto Resultados (R2DBC ONLY)
+          # Obter URL R2DBC do banco e corrigir hostname para Docker Swarm
           DATABASE_R2DBC_BASE=$(az keyvault secret show --name conexao-de-sorte-database-r2dbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)
-          DATABASE_JDBC_BASE=$(az keyvault secret show --name conexao-de-sorte-database-jdbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)
 
           # Corrigir hostname para usar o service name correto do MySQL no Docker Swarm
           DATABASE_R2DBC_CORRECTED=$(echo "$DATABASE_R2DBC_BASE" | sed 's|conexao-mysql:3306|conexao-mysql_mysql:3306|g')
-          DATABASE_JDBC_CORRECTED=$(echo "$DATABASE_JDBC_BASE" | sed -e 's|conexao-mysql:3306|conexao-mysql_mysql:3306|g' -e 's|localhost:3306|conexao-mysql_mysql:3306|g')
 
           echo "DATABASE_R2DBC_URL=$DATABASE_R2DBC_CORRECTED" >> $GITHUB_ENV
-          echo "DATABASE_JDBC_URL=$DATABASE_JDBC_CORRECTED" >> $GITHUB_ENV
           echo "DATABASE_USERNAME=$(az keyvault secret show --name conexao-de-sorte-database-username --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
           echo "DATABASE_PASSWORD=$(az keyvault secret show --name conexao-de-sorte-database-password --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
           echo "REDIS_HOST=$(az keyvault secret show --name conexao-de-sorte-redis-host --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
@@ -137,9 +134,8 @@ jobs:
             fi
           }
 
-          # Fornecer os secrets essenciais do Azure Key Vault para Docker Swarm
+          # Fornecer os secrets essenciais do Azure Key Vault para Docker Swarm (R2DBC ONLY)
           provide_secret_safe "conexao-de-sorte-database-r2dbc-url" "$DATABASE_R2DBC_URL"
-          provide_secret_safe "conexao-de-sorte-database-jdbc-url" "$DATABASE_JDBC_URL"
           provide_secret_safe "conexao-de-sorte-database-username" "$DATABASE_USERNAME"
           provide_secret_safe "conexao-de-sorte-database-password" "$DATABASE_PASSWORD"
           provide_secret_safe "conexao-de-sorte-redis-host" "$REDIS_HOST"

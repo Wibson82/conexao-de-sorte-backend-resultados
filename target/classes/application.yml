@@ -82,16 +82,10 @@ spring:
       validation-query: SELECT 1
 
   # ========================================
-  # 🛠️ FLYWAY MIGRATION CONFIGURATION
+  # 🛠️ FLYWAY MIGRATION CONFIGURATION (DISABLED - R2DBC ONLY)
   # ========================================
   flyway:
-    enabled: true
-    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://conexao-mysql_mysql:3306/conexao_de_sorte?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true}
-    user: ${conexao-de-sorte-database-username:root}
-    password: ${conexao-de-sorte-database-password:}
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: false
+    enabled: false
 
   # ========================================
   # 🔴 REDIS CACHE CONFIGURATION

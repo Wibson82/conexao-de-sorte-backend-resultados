@@ -34,11 +34,10 @@ services:
       - JAVA_OPTS=-Xms128m -Xmx350m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication
       - SERVER_PORT=8087
       - SPRING_PROFILES_ACTIVE=prod
-      # Secrets expostos como variáveis de ambiente
+      # Secrets expostos como variáveis de ambiente (R2DBC ONLY)
       - CONEXAO_DE_SORTE_DATABASE_PASSWORD_FILE=/run/secrets/conexao-de-sorte-database-password
       - CONEXAO_DE_SORTE_DATABASE_USERNAME_FILE=/run/secrets/conexao-de-sorte-database-username
       - CONEXAO_DE_SORTE_DATABASE_R2DBC_URL_FILE=/run/secrets/conexao-de-sorte-database-r2dbc-url
-      - CONEXAO_DE_SORTE_DATABASE_JDBC_URL_FILE=/run/secrets/conexao-de-sorte-database-jdbc-url
       - CONEXAO_DE_SORTE_REDIS_PASSWORD_FILE=/run/secrets/conexao-de-sorte-redis-password
       - CONEXAO_DE_SORTE_JWT_SECRET_FILE=/run/secrets/conexao-de-sorte-jwt-secret
 
@@ -47,7 +46,6 @@ services:
       - conexao-de-sorte-database-password
       - conexao-de-sorte-database-username
       - conexao-de-sorte-database-r2dbc-url
-      - conexao-de-sorte-database-jdbc-url
       - conexao-de-sorte-redis-password
       - conexao-de-sorte-jwt-secret
 
@@ -69,8 +67,6 @@ secrets:
   conexao-de-sorte-database-username:
     external: true
   conexao-de-sorte-database-r2dbc-url:
-    external: true
-  conexao-de-sorte-database-jdbc-url:
     external: true
   conexao-de-sorte-redis-password:
     external: true
