@@ -1,4 +1,4 @@
-name: "🎯 Resultados Backend - CI/CD Pipeline (Self-hosted Deploy)"
+name: "🎯 Resultados Backend - CI/CD Pipeline"
 
 on:
   push:
