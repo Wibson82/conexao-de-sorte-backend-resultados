@@ -69,9 +69,9 @@ spring:
   # 🗄️ DATABASE CONFIGURATION (R2DBC)
   # ========================================
   r2dbc:
-    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://conexao-mysql:3306}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true
-    username: ${conexao-de-sorte-database-username:conexao_user}
-    password: ${conexao-de-sorte-database-password:conexao_password}
+    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://conexao-mysql_mysql:3306/conexao_de_sorte?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true}
+    username: ${conexao-de-sorte-database-username:root}
+    password: ${conexao-de-sorte-database-password:}
     pool:
       initial-size: 1
       max-size: 15
@@ -86,9 +86,9 @@ spring:
   # ========================================
   flyway:
     enabled: true
-    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://conexao-mysql:3306}/conexao_sorte_resultados?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true
-    user: ${conexao-de-sorte-database-username:conexao_user}
-    password: ${conexao-de-sorte-database-password:conexao_password}
+    url: ${conexao-de-sorte-database-jdbc-url:jdbc:mysql://conexao-mysql_mysql:3306/conexao_de_sorte?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true}
+    user: ${conexao-de-sorte-database-username:root}
+    password: ${conexao-de-sorte-database-password:}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
