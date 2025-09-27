@@ -1,6 +1,6 @@
 services:
   conexao-de-sorte-backend-resultados:
-    image: ghcr.io/wibson82/conexao-de-sorte-backend-resultados:latest
+    image: wibson82/conexao-de-sorte-backend-resultados:latest
     container_name: conexao-de-sorte-backend-resultados
 
     # OTIMIZAÇÃO HOSTINGER KVM 2
