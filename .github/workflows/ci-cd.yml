@@ -57,7 +57,7 @@ jobs:
   deploy-selfhosted:
     needs: [validate-and-build]
     runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-resultados]
-    timeout-minutes: 20
+    timeout-minutes: 10
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read

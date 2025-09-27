@@ -61,8 +61,8 @@ public class TestConfigtreeSecretsAutoConfiguration {
         // Configurações padrão para os métodos mais comuns
         Mockito.when(mockRepo.findAll()).thenReturn(Flux.empty());
         Mockito.when(mockRepo.findAllPaginado(Mockito.any(Pageable.class))).thenReturn(Flux.empty());
-        Mockito.when(mockRepo.findByModalidadeAndDataResultadoAfter(
-            Mockito.anyString(), Mockito.any(LocalDate.class), Mockito.any(Pageable.class)))
+        Mockito.when(mockRepo.findByDataResultadoAfter(
+            Mockito.any(LocalDate.class), Mockito.any(Pageable.class)))
             .thenReturn(Flux.empty());
 
         return mockRepo;

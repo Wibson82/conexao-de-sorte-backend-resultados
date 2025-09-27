@@ -241,23 +241,24 @@ public class ResultadoService {
     /**
      * Busca resultados públicos com filtros.
      */
-    public Mono<PaginacaoDto<ResultadoDto>> buscarResultadosPublicos(int pagina, int tamanho, 
-                                                                    String modalidade, Integer periodo) {
+    public Mono<PaginacaoDto<ResultadoDto>> buscarResultadosPublicos(int pagina, int tamanho,
+                                                                    String horario, Integer periodo) {
         final int paginaFinal = Math.max(pagina, PAGINA_MINIMA);
         final int tamanhoFinal = Math.clamp(tamanho, TAMANHO_MINIMO, 50); // Máximo 50 para público
-        
+
         Pageable pageable = PageRequest.of(paginaFinal, tamanhoFinal);
-        
+
         Flux<br.tec.facilitaservicos.resultados.dominio.entidade.ResultadoR2dbc> query;
         Mono<Long> count;
-        
-        if (modalidade != null && periodo != null) {
+
+        if (horario != null && periodo != null) {
             LocalDate dataInicio = LocalDate.now().minusDays(periodo);
-            query = repositorio.findByModalidadeAndDataResultadoAfter(modalidade, dataInicio, pageable);
-            count = repositorio.countByModalidadeAndDataResultadoAfter(modalidade, dataInicio);
-        } else if (modalidade != null) {
-            query = repositorio.findByModalidade(modalidade, pageable);
-            count = repositorio.countByModalidade(modalidade);
+            query = repositorio.findByHorarioOrderByDataResultadoDesc(horario, pageable)
+                .filter(r -> r.getDataResultado().isAfter(dataInicio));
+            count = repositorio.countByHorario(horario);
+        } else if (horario != null) {
+            query = repositorio.findByHorarioOrderByDataResultadoDesc(horario, pageable);
+            count = repositorio.countByHorario(horario);
         } else if (periodo != null) {
             LocalDate dataInicio = LocalDate.now().minusDays(periodo);
             query = repositorio.findByDataResultadoAfter(dataInicio, pageable);
@@ -284,11 +285,11 @@ public class ResultadoService {
     /**
      * Dispara extração ETL via Scheduler.
      */
-    public Mono<String> dispararExtracao(String modalidade, String data) {
+    public Mono<String> dispararExtracao(String horario, String data) {
         String jobId = UUID.randomUUID().toString();
-        
+
         Map<String, Object> request = Map.of(
-            "modalidade", modalidade != null ? modalidade : "megasena",
+            "horario", horario != null ? horario : "20:00",
             "data", data,
             "jobId", jobId
         );
@@ -318,26 +319,26 @@ public class ResultadoService {
     }
     
     /**
-     * Último resultado por modalidade.
+     * Último resultado por horário.
      */
-    public Mono<ResultadoDto> buscarUltimoPorModalidade(String modalidade) {
-        return repositorio.findFirstByModalidadeOrderByDataResultadoDescHorarioDesc(modalidade)
+    public Mono<ResultadoDto> buscarUltimoPorHorario(String horario) {
+        return repositorio.findUltimoResultadoPorHorario(horario)
             .map(mapper::paraDto);
     }
-    
+
     /**
-     * Resultado por modalidade e número do concurso.
+     * Resultado por horário e data específica.
      */
-    public Mono<ResultadoDto> buscarPorConcurso(String modalidade, Long numero) {
-        return repositorio.findByModalidadeAndNumero(modalidade, numero)
+    public Mono<ResultadoDto> buscarPorHorarioEData(String horario, LocalDate data) {
+        return repositorio.findByHorarioAndDataResultado(horario, data)
             .map(mapper::paraDto);
     }
-    
+
     /**
-     * Resultados por período e modalidade.
+     * Resultados por período específico.
      */
-    public Flux<ResultadoDto> buscarPorPeriodo(String modalidade, LocalDate de, LocalDate ate) {
-        return repositorio.findByModalidadeAndDataResultadoBetween(modalidade, de, ate)
+    public Flux<ResultadoDto> buscarPorPeriodo(LocalDate de, LocalDate ate) {
+        return repositorio.findByPeriodo(de, ate, Pageable.unpaged())
             .map(mapper::paraDto);
     }
 }
