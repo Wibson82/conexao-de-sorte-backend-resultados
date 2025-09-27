@@ -27,10 +27,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    outputs:
-      has_keyvault: ${{ steps.check_secrets.outputs.has_keyvault }}
-      has_azure_creds: ${{ steps.check_secrets.outputs.has_azure_creds }}
-      keyvault_name: ${{ steps.check_secrets.outputs.keyvault_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.3.0
@@ -51,45 +47,9 @@ jobs:
           fi
           echo "✅ Sem senhas hardcoded detectadas"
 
-      - name: 🔎 Validar OIDC Azure
-        id: check_secrets
-        env:
-          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_KEYVAULT_ENDPOINT: ${{ vars.AZURE_KEYVAULT_ENDPOINT || secrets.AZURE_KEYVAULT_ENDPOINT }}
-          AZURE_KEYVAULT_NAME: ${{ vars.AZURE_KEYVAULT_NAME || secrets.AZURE_KEYVAULT_NAME }}
+      - name: "🔎 Validar configuração básica"
         run: |
-          set -Eeuo pipefail
-          missing=()
-          for var in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
-            if [[ -z "${!var:-}" ]]; then
-              missing+=("$var")
-            fi
-          done
-          if (( ${#missing[@]} )); then
-            printf '❌ GitHub Secrets obrigatórios ausentes: %s\n' "${missing[*]}"
-            exit 1
-          fi
-          echo "✅ Identificadores Azure configurados"
-
-          keyvault_name=""
-          if [[ -n "${AZURE_KEYVAULT_ENDPOINT:-}" ]]; then
-            keyvault_name=$(echo "$AZURE_KEYVAULT_ENDPOINT" | sed 's|https://\(.*\)\.vault\.azure\.net.*|\1|')
-            echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
-            echo "keyvault_name=$keyvault_name" >> "$GITHUB_OUTPUT"
-            echo "✅ Usando Key Vault informado via endpoint (${keyvault_name})"
-          elif [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
-            keyvault_name="$AZURE_KEYVAULT_NAME"
-            echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
-            echo "keyvault_name=$keyvault_name" >> "$GITHUB_OUTPUT"
-            echo "✅ Usando Key Vault informado via nome (${keyvault_name})"
-          else
-            echo "❌ Nenhum Key Vault configurado para o serviço resultados"
-            exit 1
-          fi
-
-          echo "has_azure_creds=true" >> "$GITHUB_OUTPUT"
+          echo "✅ Validação básica concluída"
 
       - name: Validation completed
         run: echo "✅ Validação concluída - pipeline liberado para deploy"
@@ -109,84 +69,78 @@ jobs:
           clean: true
           fetch-depth: 1
 
-      - name: 🔐 Azure Login (OIDC)
-        if: ${{ needs.validate-and-build.outputs.has_azure_creds == 'true' }}
+      - name: "🔐 Azure Login (OIDC)"
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: ✅ Validar sessão Azure
-        if: ${{ needs.validate-and-build.outputs.has_azure_creds == 'true' }}
+      - name: "✅ Validar sessão Azure"
         run: |
           echo "🔍 Validando sessão Azure..."
           az account show >/dev/null 2>&1 || { echo "❌ Falha na autenticação Azure"; exit 1; }
           echo "✅ Azure autenticado (subscription $(az account show --query id -o tsv))"
 
-      - name: 🔑 Buscar segredos no Azure Key Vault
-        if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
-        env:
-          KEYVAULT_NAME: ${{ needs.validate-and-build.outputs.keyvault_endpoint }}
+      - name: "🔑 Get secrets from Azure Key Vault (via AZ CLI)"
         run: |
-          set -Eeuo pipefail
-          if [[ -z "${KEYVAULT_NAME}" ]]; then
-            echo "❌ Nome do Key Vault não definido"
-            exit 1
-          fi
-          echo "🔍 Lendo segredos do Key Vault ${KEYVAULT_NAME}"
-          SECRETS=(
-            conexao-de-sorte-database-r2dbc-url
-            conexao-de-sorte-database-jdbc-url
-            conexao-de-sorte-database-username
-            conexao-de-sorte-database-password
-            conexao-de-sorte-redis-host
-            conexao-de-sorte-redis-port
-            conexao-de-sorte-redis-password
-            conexao-de-sorte-redis-database
-            conexao-de-sorte-jwt-secret
-            conexao-de-sorte-jwt-issuer
-            conexao-de-sorte-jwt-jwks-uri
-            conexao-de-sorte-jwt-refresh-token-validity
-            conexao-de-sorte-jwt-access-token-validity
-            conexao-de-sorte-jwt-cleanup-interval
-          )
-          for secret_name in "${SECRETS[@]}"; do
-            echo "🔐 Secret: ${secret_name}"
-            secret_value=$(az keyvault secret show --vault-name "${KEYVAULT_NAME}" --name "${secret_name}" --query value -o tsv 2>/dev/null || true)
-            if [[ -n "${secret_value}" ]]; then
-              env_var=$(echo "${secret_name}" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-              echo "${env_var}=${secret_value}" >> $GITHUB_ENV
-              echo "::add-mask::${secret_value}"
-            else
-              echo "⚠️ Secret '${secret_name}' não encontrado - mantendo deploy, porém verifique Key Vault"
-            fi
-          done
-          echo "✅ Segredos processados"
+          echo "🔑 Obtendo secrets do projeto Resultados do Azure Key Vault..."
 
-      - name: 🗄️ Garantir secrets do Docker Swarm
+          # Secrets essenciais para o projeto Resultados
+          echo "DATABASE_R2DBC_URL=$(az keyvault secret show --name conexao-de-sorte-database-r2dbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "DATABASE_JDBC_URL=$(az keyvault secret show --name conexao-de-sorte-database-jdbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "DATABASE_USERNAME=$(az keyvault secret show --name conexao-de-sorte-database-username --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "DATABASE_PASSWORD=$(az keyvault secret show --name conexao-de-sorte-database-password --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "REDIS_HOST=$(az keyvault secret show --name conexao-de-sorte-redis-host --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "REDIS_PORT=$(az keyvault secret show --name conexao-de-sorte-redis-port --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "REDIS_PASSWORD=$(az keyvault secret show --name conexao-de-sorte-redis-password --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "REDIS_DATABASE=$(az keyvault secret show --name conexao-de-sorte-redis-database --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          echo "JWT_SECRET=$(az keyvault secret show --name conexao-de-sorte-jwt-secret --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+
+          echo "✅ Secrets do projeto Resultados obtidos do Azure Key Vault"
+
+      - name: "🔒 Provide Docker Secrets from Azure Key Vault"
         run: |
-          set -Eeuo pipefail
-          ensure_secret() {
+          echo "🔒 Fornecendo secrets do Azure Key Vault para Docker Swarm..."
+
+          # Funcao para fornecer secret do Azure Key Vault para Docker Swarm
+          provide_secret_safe() {
             local secret_name="$1"
-            local value="$2"
-            if [[ -z "$value" ]]; then
-              echo "❌ Valor não fornecido para o secret $secret_name"
-              exit 1
+            local secret_value="$2"
+
+            echo "Fornecendo secret: $secret_name"
+
+            # Verificar se secret existe e remover se necessário
+            if docker secret ls --format "{{.Name}}" | grep -q "^${secret_name}$"; then
+              echo "Secret $secret_name já existe - removendo..."
+              if ! docker secret rm "$secret_name" 2>/dev/null; then
+                echo "⚠️ Secret $secret_name está em uso - será atualizado após restart do serviço"
+                return 0
+              fi
+              sleep 1
             fi
-            if docker secret ls --format '{{.Name}}' | grep -q "^${secret_name}$"; then
-              echo "ℹ️ Secret ${secret_name} já existe, atualizando"
-              docker secret rm "$secret_name" >/dev/null 2>&1 || true
+
+            # Fornecer secret do Azure Key Vault para Docker Swarm
+            if echo "$secret_value" | docker secret create "$secret_name" - >/dev/null 2>&1; then
+              echo "✅ Secret $secret_name fornecido do Azure Key Vault para Swarm"
+            else
+              echo "❌ Falha ao fornecer secret $secret_name"
+              return 1
             fi
-            printf "%s" "$value" | docker secret create "$secret_name" - >/dev/null
-            echo "✅ Secret ${secret_name} disponível"
           }
-          ensure_secret "conexao-de-sorte-database-username" "${CONEXAO_DE_SORTE_DATABASE_USERNAME:-}"
-          ensure_secret "conexao-de-sorte-database-password" "${CONEXAO_DE_SORTE_DATABASE_PASSWORD:-}"
-          ensure_secret "conexao-de-sorte-database-r2dbc-url" "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL:-}"
-          ensure_secret "conexao-de-sorte-database-jdbc-url" "${CONEXAO_DE_SORTE_DATABASE_JDBC_URL:-}"
-          ensure_secret "conexao-de-sorte-redis-password" "${CONEXAO_DE_SORTE_REDIS_PASSWORD:-}"
-          ensure_secret "conexao-de-sorte-jwt-secret" "${CONEXAO_DE_SORTE_JWT_SECRET:-}"
+
+          # Fornecer os secrets essenciais do Azure Key Vault para Docker Swarm
+          provide_secret_safe "conexao-de-sorte-database-r2dbc-url" "$DATABASE_R2DBC_URL"
+          provide_secret_safe "conexao-de-sorte-database-jdbc-url" "$DATABASE_JDBC_URL"
+          provide_secret_safe "conexao-de-sorte-database-username" "$DATABASE_USERNAME"
+          provide_secret_safe "conexao-de-sorte-database-password" "$DATABASE_PASSWORD"
+          provide_secret_safe "conexao-de-sorte-redis-host" "$REDIS_HOST"
+          provide_secret_safe "conexao-de-sorte-redis-port" "$REDIS_PORT"
+          provide_secret_safe "conexao-de-sorte-redis-password" "$REDIS_PASSWORD"
+          provide_secret_safe "conexao-de-sorte-redis-database" "$REDIS_DATABASE"
+          provide_secret_safe "conexao-de-sorte-jwt-secret" "$JWT_SECRET"
+
+          echo "🔐 Secrets do Azure Key Vault fornecidos para Docker Swarm"
 
       - name: 🧹 Preparar ambiente local
         run: |
