@@ -278,55 +278,6 @@ cors:
 
 ---
 # ========================================
-# 🛠️ DEVELOPMENT PROFILE
-# ========================================
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-  # Development database (H2 in-memory for testing)
-  r2dbc:
-    url: r2dbc:h2:mem:///conexao-resultados_dev?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    username: sa
-    password:
-
-  flyway:
-    enabled: false  # Disable in dev with H2
-
-  # Development Redis (embedded or local)
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password:
-      database: 0
-
-# Development logging (more verbose)
-logging:
-  level:
-    "[br.tec.facilitaservicos.resultados]": DEBUG
-    root: INFO
-    "[org.springframework.r2dbc]": DEBUG
-    "[org.springframework.security]": DEBUG
-
-# Development features
-app:
-  features:
-    audit-logging: false
-    metrics-collection: true
-  jwt:
-    access-token-validity: 300  # 5 minutes for dev
-    refresh-token-validity: 3600  # 1 hour for dev
-
-# Development CORS (permissive)
-cors:
-  allowed-origins: "*"
-  allowed-methods: "*"
-  allowed-headers: "*"
-
----
-# ========================================
 # 🏭 PRODUCTION PROFILE
 # ========================================
 spring:
