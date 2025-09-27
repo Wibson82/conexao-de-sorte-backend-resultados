@@ -93,7 +93,7 @@ jobs:
 
           # Corrigir hostname para usar o service name correto do MySQL no Docker Swarm
           DATABASE_R2DBC_CORRECTED=$(echo "$DATABASE_R2DBC_BASE" | sed 's|conexao-mysql:3306|conexao-mysql_mysql:3306|g')
-          DATABASE_JDBC_CORRECTED=$(echo "$DATABASE_JDBC_BASE" | sed 's|conexao-mysql:3306|conexao-mysql_mysql:3306|g')
+          DATABASE_JDBC_CORRECTED=$(echo "$DATABASE_JDBC_BASE" | sed -e 's|conexao-mysql:3306|conexao-mysql_mysql:3306|g' -e 's|localhost:3306|conexao-mysql_mysql:3306|g')
 
           echo "DATABASE_R2DBC_URL=$DATABASE_R2DBC_CORRECTED" >> $GITHUB_ENV
           echo "DATABASE_JDBC_URL=$DATABASE_JDBC_CORRECTED" >> $GITHUB_ENV
