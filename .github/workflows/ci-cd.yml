@@ -82,6 +82,12 @@ jobs:
           az account show >/dev/null 2>&1 || { echo "❌ Falha na autenticação Azure"; exit 1; }
           echo "✅ Azure autenticado (subscription $(az account show --query id -o tsv))"
 
+      - name: "☕ Setup Java 25"
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
       - name: "🔧 Build Maven Application"
         run: |
           echo "🔧 Buildando aplicação Maven..."
