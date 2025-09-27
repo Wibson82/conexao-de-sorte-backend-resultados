@@ -61,13 +61,24 @@ public class R2dbcUrlNormalizer implements ApplicationListener<ApplicationEnviro
         
         for (String property : r2dbcProperties) {
             String originalValue = environment.getProperty(property);
-            
-            if (originalValue != null && isJdbcUrl(originalValue)) {
-                String convertedValue = convertJdbcToR2dbc(originalValue);
+
+            if (originalValue != null) {
+                String convertedValue;
+
+                if (isJdbcUrl(originalValue)) {
+                    // Conversão JDBC -> R2DBC
+                    convertedValue = convertJdbcToR2dbc(originalValue);
+                } else if (originalValue.startsWith("r2dbc:mysql://")) {
+                    // Aplicar correções em URLs R2DBC existentes
+                    convertedValue = convertJdbcToR2dbc(originalValue);
+                } else {
+                    convertedValue = originalValue;
+                }
+
                 if (!originalValue.equals(convertedValue)) {
                     normalizedProperties.put(property, convertedValue);
                     hasChanges = true;
-                    
+
                     logger.info("🛡️ R2DBC URL Normalizer - Conversão automática aplicada:");
                     logger.info("   Propriedade: {}", property);
                     if (logger.isInfoEnabled()) {
@@ -109,8 +120,17 @@ public class R2dbcUrlNormalizer implements ApplicationListener<ApplicationEnviro
         if (jdbcUrl == null) {
             return null;
         }
-        
+
         String converted = jdbcUrl;
+
+        // CORREÇÃO ESPECÍFICA: Adicionar database name se estiver faltando
+        if (converted.startsWith("r2dbc:mysql://") && !converted.contains("/conexao_de_sorte")) {
+            // Se a URL não tem database name, adicionar /conexao_de_sorte
+            if (converted.matches("r2dbc:mysql://[^/]+:\\d+$")) {
+                converted = converted + "/conexao_de_sorte?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true";
+                logger.info("🔧 Adicionando database name e parâmetros à URL: /conexao_de_sorte");
+            }
+        }
         
         // MySQL
         if (JDBC_MYSQL_PATTERN.matcher(converted).find()) {
