@@ -7,9 +7,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-import io.r2dbc.spi.ConnectionFactory;
-import io.r2dbc.spi.ConnectionFactoryOptions;
-import io.r2dbc.mysql.MySqlConnectionFactoryProvider;
+import org.springframework.r2dbc.core.DatabaseClient;
 
 import java.time.Duration;
 
@@ -33,6 +31,12 @@ public class ConnectionDiagnostic {
 
     @Value("${spring.r2dbc.password:}")
     private String password;
+
+    private final DatabaseClient databaseClient;
+
+    public ConnectionDiagnostic(DatabaseClient databaseClient) {
+        this.databaseClient = databaseClient;
+    }
 
     @EventListener
     public void onApplicationReady(ApplicationReadyEvent event) {
@@ -80,22 +84,14 @@ public class ConnectionDiagnostic {
         try {
             logger.info("🔌 Testando conectividade R2DBC...");
 
-            // Criar ConnectionFactory manualmente para teste
-            ConnectionFactoryOptions options = ConnectionFactoryOptions.parse(r2dbcUrl)
-                .mutate()
-                .option(ConnectionFactoryOptions.USER, username)
-                .option(ConnectionFactoryOptions.PASSWORD, password != null ? password : "")
-                .build();
-
-            ConnectionFactory factory = new MySqlConnectionFactoryProvider().create(options);
-
-            // Teste de conexão com timeout
-            Mono.from(factory.create())
+            // Teste simples usando DatabaseClient
+            databaseClient.sql("SELECT 1 as test")
+                .fetch()
+                .first()
                 .timeout(Duration.ofSeconds(10))
-                .doOnNext(connection -> {
-                    logger.info("✅ CONECTIVIDADE OK - Conexão estabelecida!");
-                    // Fechar conexão
-                    Mono.from(connection.close()).subscribe();
+                .doOnNext(result -> {
+                    logger.info("✅ CONECTIVIDADE OK - Query de teste executada com sucesso!");
+                    logger.info("   Resultado: {}", result);
                 })
                 .doOnError(error -> {
                     logger.error("❌ FALHA NA CONECTIVIDADE:");
