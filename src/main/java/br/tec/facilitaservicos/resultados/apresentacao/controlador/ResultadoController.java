@@ -274,7 +274,7 @@ public class ResultadoController {
                  consumes = MediaType.APPLICATION_JSON_VALUE,
                  produces = MediaType.APPLICATION_JSON_VALUE)
     @RateLimiter(name = "resultados-admin")
-    public Mono<ResponseEntity<java.util.Map<String, String>>> extrairResultadosPublicos(
+    public Mono<ResponseEntity<java.util.Map<String, String>>> extrairResultadosPublicosAdmin(
             @Parameter(description = "Dados da extração")
             @RequestBody java.util.Map<String, String> request
     ) {
