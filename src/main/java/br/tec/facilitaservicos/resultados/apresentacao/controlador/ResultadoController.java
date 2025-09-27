@@ -270,7 +270,7 @@ public class ResultadoController {
      */
     @Operation(summary = "Disparar extração pública",
                description = "Dispara job ETL de extração (admin only)")
-    @PostMapping(value = "/publico/extrair",
+    @PostMapping(value = "/publico/extrair-admin",
                  consumes = MediaType.APPLICATION_JSON_VALUE,
                  produces = MediaType.APPLICATION_JSON_VALUE)
     @RateLimiter(name = "resultados-admin")
