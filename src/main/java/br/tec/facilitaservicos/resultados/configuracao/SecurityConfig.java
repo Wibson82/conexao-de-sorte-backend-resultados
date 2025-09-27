@@ -148,10 +148,7 @@ public class SecurityConfig {
                     // Novos endpoints públicos de consulta
                     "/rest/v1/loterias/**"
                 ).permitAll()
-            
-                // Endpoints administrativos (requerem autenticação)
-                .pathMatchers("/actuator/**").hasAuthority("SCOPE_admin")
-                
+
                 // Qualquer outra requisição requer autenticação
                 .anyExchange().authenticated()
             )

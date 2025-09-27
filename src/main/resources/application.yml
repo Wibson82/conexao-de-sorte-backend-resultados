@@ -69,7 +69,7 @@ spring:
   # 🗄️ DATABASE CONFIGURATION (R2DBC)
   # ========================================
   r2dbc:
-    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://conexao-mysql_mysql:3306/conexao_de_sorte?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true}
+    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://conexao-mysql:3306/conexao_de_sorte?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true}
     username: ${conexao-de-sorte-database-username:root}
     password: ${conexao-de-sorte-database-password:}
     pool:
