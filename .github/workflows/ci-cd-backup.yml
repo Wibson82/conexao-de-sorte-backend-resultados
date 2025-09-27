@@ -1,0 +1,357 @@
+name: "🎯 Resultados Backend - CI/CD Pipeline"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly security scan
+
+# Controle de concorrência para evitar execuções simultâneas
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Variáveis de ambiente global
+env:
+  SERVICE_NAME: resultados
+  STACK_NAME: conexao-resultados
+  DOCKER_NETWORK_NAME: conexao-network-swarm
+  JAVA_VERSION: '25'
+  MAVEN_OPTS: '-Xmx1024m -XX:MaxMetaspaceSize=256m'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/resultados
+
+permissions:
+  id-token: write      # Necessário para OIDC com Azure
+  contents: read       # Necessário para checkout
+  packages: write      # Necessário para push no GHCR
+  security-events: write # Necessário para CodeQL
+
+jobs:
+  # ============================================================================
+  # 🔍 JOB 1: VALIDATION & BUILD
+  # ============================================================================
+  validate-and-build:
+    name: "🔍 Validate & Build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      has_keyvault: ${{ steps.check_secrets.outputs.has_keyvault }}
+      has_azure_creds: ${{ steps.check_secrets.outputs.has_azure_creds }}
+      keyvault_name: ${{ steps.check_secrets.outputs.keyvault_name }}
+
+    steps:
+      - name: "📥 Checkout Repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: "☕ Setup Java ${{ env.JAVA_VERSION }}"
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'corretto'
+          cache: maven
+
+      - name: "🔧 Setup Maven"
+        run: |
+          echo "📋 Maven version:"
+          mvn --version
+          echo "🔧 Configuring Maven settings..."
+          mkdir -p ~/.m2
+
+      - name: "🔍 Validate Project Structure"
+        run: |
+          echo "📁 Validating project structure..."
+          required_files=("pom.xml" "Dockerfile" "docker-compose.yml" "src/main/resources/application.yml")
+          for file in "${required_files[@]}"; do
+            if [[ -f "$file" ]]; then
+              echo "✅ $file exists"
+            else
+              echo "❌ $file is missing"
+              exit 1
+            fi
+          done
+
+      - name: "🔨 Maven Compile & Test"
+        run: |
+          echo "🔨 Compiling project..."
+          mvn clean compile -B -q
+          echo "🧪 Running tests..."
+          mvn test -B -q
+          echo "📦 Packaging application..."
+          mvn package -DskipTests -B -q
+
+      - name: "🐳 Validate Docker Configuration"
+        run: |
+          echo "🐳 Validating Dockerfile..."
+          docker build -t temp-validation . && docker rmi temp-validation
+          echo "🐳 Validating docker-compose.yml..."
+          docker compose -f docker-compose.yml config -q
+          echo "✅ Docker configuration is valid"
+
+      - name: "🔒 Security Validation"
+        run: |
+          echo "🔒 Checking for security issues..."
+          # Check for hardcoded secrets
+          if grep -r -i "password\s*[:=]\s*['\"][^$]" . --exclude-dir=.git --exclude-dir=target --exclude="*.backup*"; then
+            echo "❌ Potential hardcoded passwords found"
+            exit 1
+          fi
+          # Check for TODO/FIXME in critical files
+          if grep -r "TODO\|FIXME" src/main/java/ | grep -i "security\|password\|secret"; then
+            echo "⚠️ Security-related TODOs found - review required"
+          fi
+          echo "✅ Basic security validation passed"
+
+      - name: "🔍 Check Azure Secrets Availability"
+        id: check_secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_KEYVAULT_ENDPOINT: ${{ secrets.AZURE_KEYVAULT_URL }}
+          AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
+        run: |
+          set -Eeuo pipefail
+          missing=()
+          for var in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [[ -z "${!var:-}" ]]; then
+              missing+=("$var")
+            fi
+          done
+          if (( ${#missing[@]} )); then
+            printf '❌ GitHub Secrets obrigatórios ausentes: %s\n' "${missing[*]}"
+            exit 1
+          fi
+          echo "has_azure_creds=true" >> "$GITHUB_OUTPUT"
+          echo "✅ Credenciais Azure presentes"
+
+          keyvault_name=""
+          if [[ -n "${AZURE_KEYVAULT_ENDPOINT:-}" ]]; then
+            keyvault_name=$(echo "$AZURE_KEYVAULT_ENDPOINT" | sed 's|https://\(.*\)\.vault\.azure\.net.*|\1|')
+          elif [[ -n "${AZURE_KEYVAULT_NAME:-}" ]]; then
+            keyvault_name="$AZURE_KEYVAULT_NAME"
+          else
+            echo "❌ Nenhum Key Vault configurado"
+            exit 1
+          fi
+          echo "has_keyvault=true" >> "$GITHUB_OUTPUT"
+          echo "keyvault_name=$keyvault_name" >> "$GITHUB_OUTPUT"
+          echo "✅ Key Vault detectado: ${keyvault_name}"
+
+  # ============================================================================
+  # 🚀 JOB 2: BUILD, PUSH & DEPLOY (SELF-HOSTED)
+  # ============================================================================
+  release-and-deploy:
+    name: "🚀 Build, Push & Deploy"
+    runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-resultados]
+    timeout-minutes: 25
+    needs: validate-and-build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: "📥 Checkout Repository"
+        uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 1
+
+      - name: "🐳 Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "🔐 Login to Container Registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "🏷️ Extract Metadata"
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: "🔨 Build and Push Docker Image"
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+          build-args: |
+            SERVICE_NAME=${{ env.SERVICE_NAME }}
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+
+      - name: "🔐 Azure Login (OIDC)"
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: "✅ Validar sessão Azure"
+        run: |
+          echo "🔍 Validando sessão Azure..."
+          az account show >/dev/null 2>&1 || { echo "❌ Azure CLI não autenticado"; exit 1; }
+          echo "✅ Subscription ativa: $(az account show --query id -o tsv)"
+
+      - name: "🔑 Carregar segredos do Azure Key Vault"
+        id: keyvault
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.76.0
+          inlineScript: |
+            set -Eeuo pipefail
+            KEYVAULT_NAME='${{ needs.validate-and-build.outputs.keyvault_name }}'
+            echo "🔐 Lendo segredos do Key Vault ${KEYVAULT_NAME}"
+            SECRETS=(
+              conexao-de-sorte-database-r2dbc-url
+              conexao-de-sorte-database-jdbc-url
+              conexao-de-sorte-database-username
+              conexao-de-sorte-database-password
+              conexao-de-sorte-redis-host
+              conexao-de-sorte-redis-port
+              conexao-de-sorte-redis-password
+              conexao-de-sorte-redis-database
+              conexao-de-sorte-jwt-secret
+              conexao-de-sorte-jwt-issuer
+              conexao-de-sorte-jwt-jwks-uri
+              conexao-de-sorte-jwt-refresh-token-validity
+              conexao-de-sorte-jwt-access-token-validity
+              conexao-de-sorte-jwt-cleanup-interval
+            )
+            for secret_name in "${SECRETS[@]}"; do
+              value=$(az keyvault secret show --vault-name "$KEYVAULT_NAME" --name "$secret_name" --query value -o tsv 2>/dev/null || true)
+              if [[ -z "$value" ]]; then
+                echo "❌ Secret $secret_name ausente"
+                exit 1
+              fi
+              env_name=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+              echo "${env_name}=${value}" >> $GITHUB_ENV
+              echo "::add-mask::${value}"
+            done
+            echo "✅ Segredos carregados"
+
+      - name: "🗄️ Garantir secrets do Docker Swarm"
+        run: |
+          set -Eeuo pipefail
+          ensure_secret() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "$value" ]]; then
+              echo "❌ Valor não fornecido para o secret $name"
+              exit 1
+            fi
+            if docker secret ls --format '{{.Name}}' | grep -q "^${name}$"; then
+              docker secret rm "$name" >/dev/null 2>&1 || true
+            fi
+            printf "%s" "$value" | docker secret create "$name" - >/dev/null
+            echo "✅ Secret ${name} disponível"
+          }
+          ensure_secret "conexao-de-sorte-database-username" "${CONEXAO_DE_SORTE_DATABASE_USERNAME}"
+          ensure_secret "conexao-de-sorte-database-password" "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}"
+          ensure_secret "conexao-de-sorte-database-r2dbc-url" "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}"
+          ensure_secret "conexao-de-sorte-database-jdbc-url" "${CONEXAO_DE_SORTE_DATABASE_JDBC_URL}"
+          ensure_secret "conexao-de-sorte-redis-password" "${CONEXAO_DE_SORTE_REDIS_PASSWORD}"
+          ensure_secret "conexao-de-sorte-jwt-secret" "${CONEXAO_DE_SORTE_JWT_SECRET}"
+
+      - name: "📁 Preparar ambiente"
+        run: |
+          mkdir -p logs
+          [[ -f docker-compose.yml ]] || { echo "❌ docker-compose.yml não encontrado"; exit 1; }
+          if ! docker network ls --filter name="^${DOCKER_NETWORK_NAME}$" --format '{{.Name}}' | grep -q "${DOCKER_NETWORK_NAME}"; then
+            docker network create --driver overlay --attachable "${DOCKER_NETWORK_NAME}"
+          fi
+
+      - name: "🚀 Deploy Stack"
+        run: |
+          echo "🚀 Starting deployment for ${{ env.SERVICE_NAME }}..."
+
+          export CONEXAO_DE_SORTE_DATABASE_R2DBC_URL="${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}"
+          export CONEXAO_DE_SORTE_DATABASE_USERNAME="${CONEXAO_DE_SORTE_DATABASE_USERNAME}"
+          export CONEXAO_DE_SORTE_DATABASE_PASSWORD="${CONEXAO_DE_SORTE_DATABASE_PASSWORD}"
+          export CONEXAO_DE_SORTE_REDIS_HOST="${CONEXAO_DE_SORTE_REDIS_HOST}"
+          export CONEXAO_DE_SORTE_REDIS_PORT="${CONEXAO_DE_SORTE_REDIS_PORT}"
+          export CONEXAO_DE_SORTE_REDIS_PASSWORD="${CONEXAO_DE_SORTE_REDIS_PASSWORD}"
+          export CONEXAO_DE_SORTE_JWT_SECRET="${CONEXAO_DE_SORTE_JWT_SECRET}"
+          export CONEXAO_DE_SORTE_JWT_ISSUER="${CONEXAO_DE_SORTE_JWT_ISSUER}"
+
+          # Configure deployment
+          export COMPOSE_PROJECT_NAME="${{ env.STACK_NAME }}"
+          export IMAGE_TAG="latest"
+
+          # Pull latest image
+          echo "📥 Pulling latest image..."
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || echo "⚠️ Pull failed, will use local build"
+
+          # Deploy using Docker Stack
+          echo "🔄 Deploying stack..."
+          docker stack deploy -c docker-compose.yml "${{ env.STACK_NAME }}"
+
+          echo "✅ Deployment completed successfully"
+
+      - name: "🏥 Health Check"
+        run: |
+          echo "🏥 Performing health check..."
+          sleep 30  # Wait for service to start
+
+          # Check service status
+          echo "📊 Service status:"
+          docker stack services "${{ env.STACK_NAME }}" || true
+
+          # Try to reach health endpoint
+          for i in {1..5}; do
+            if curl -f -s "http://localhost:8087/actuator/health" > /dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "⏳ Attempt $i/5 failed, waiting..."
+            sleep 10
+          done
+
+          echo "⚠️ Health check failed, but deployment may still be starting"
+          echo "📋 Check logs: docker service logs ${{ env.STACK_NAME }}_${{ env.SERVICE_NAME }}"
+
+  # ============================================================================
+  # 📊 JOB 3: POST-DEPLOYMENT MONITORING
+  # ============================================================================
+  post-deployment:
+    name: "📊 Post-Deployment"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: release-and-deploy
+    if: always() && needs.release-and-deploy.result != 'cancelled'
+
+    steps:
+      - name: "📊 Deployment Summary"
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Stack**: ${{ env.STACK_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ needs.release-and-deploy.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.release-and-deploy.result }}" == "success" ]]; then
+            echo "✅ Deployment completed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Deployment failed or was skipped" >> $GITHUB_STEP_SUMMARY
+          fi

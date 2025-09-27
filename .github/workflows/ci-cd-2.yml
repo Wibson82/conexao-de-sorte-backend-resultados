@@ -87,8 +87,16 @@ jobs:
           echo "🔑 Obtendo secrets do projeto Resultados do Azure Key Vault..."
 
           # Secrets essenciais para o projeto Resultados
-          echo "DATABASE_R2DBC_URL=$(az keyvault secret show --name conexao-de-sorte-database-r2dbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
-          echo "DATABASE_JDBC_URL=$(az keyvault secret show --name conexao-de-sorte-database-jdbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
+          # Obter URLs base do banco e corrigir hostname para Docker Swarm
+          DATABASE_R2DBC_BASE=$(az keyvault secret show --name conexao-de-sorte-database-r2dbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)
+          DATABASE_JDBC_BASE=$(az keyvault secret show --name conexao-de-sorte-database-jdbc-url --vault-name kv-conexao-de-sorte --query value -o tsv)
+
+          # Corrigir hostname para usar o service name correto do MySQL no Docker Swarm
+          DATABASE_R2DBC_CORRECTED=$(echo "$DATABASE_R2DBC_BASE" | sed 's|conexao-mysql:3306|conexao-mysql_mysql:3306|g')
+          DATABASE_JDBC_CORRECTED=$(echo "$DATABASE_JDBC_BASE" | sed 's|conexao-mysql:3306|conexao-mysql_mysql:3306|g')
+
+          echo "DATABASE_R2DBC_URL=$DATABASE_R2DBC_CORRECTED" >> $GITHUB_ENV
+          echo "DATABASE_JDBC_URL=$DATABASE_JDBC_CORRECTED" >> $GITHUB_ENV
           echo "DATABASE_USERNAME=$(az keyvault secret show --name conexao-de-sorte-database-username --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
           echo "DATABASE_PASSWORD=$(az keyvault secret show --name conexao-de-sorte-database-password --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
           echo "REDIS_HOST=$(az keyvault secret show --name conexao-de-sorte-redis-host --vault-name kv-conexao-de-sorte --query value -o tsv)" >> $GITHUB_ENV
@@ -159,21 +167,68 @@ jobs:
           docker stack deploy -c docker-compose.yml "${STACK_NAME}"
           echo "✅ Stack enviada"
 
-      - name: 🏥 Health Check
+      - name: 🏥 Health Check Melhorado
         run: |
           echo "⏳ Aguardando serviço ficar saudável"
+          STACK_NAME="${STACK_NAME:-conexao-resultados}"
+          SERVICE_NAME="${STACK_NAME}_conexao-de-sorte-backend-resultados"
+
+          # Aguardar serviço ser criado
+          echo "🔍 Verificando se serviço foi criado..."
+          for attempt in {1..10}; do
+            if docker service ls --filter name="$SERVICE_NAME" --format "{{.Name}}" | grep -q .; then
+              echo "✅ Serviço $SERVICE_NAME encontrado"
+              break
+            fi
+            echo "⏳ Tentativa $attempt/10 - aguardando criação do serviço..."
+            sleep 5
+          done
+
+          # Verificar se containers estão rodando
+          echo "🔍 Verificando containers do serviço..."
+          docker service ps "$SERVICE_NAME" --no-trunc
+
+          # Aguardar containers estarem rodando
+          echo "⏳ Aguardando containers ficarem operacionais..."
+          sleep 60
+
+          # Verificar logs para debug
+          echo "🔍 Verificando logs do serviço:"
+          docker service logs "$SERVICE_NAME" --tail 20 || true
+
+          # Health check melhorado
+          echo "🏥 Executando health check..."
           attempts=0
-          until curl -fsS http://localhost:8087/actuator/health >/dev/null; do
+          max_attempts=20
+
+          until curl -fsS http://localhost:8087/actuator/health >/dev/null 2>&1; do
             attempts=$((attempts+1))
-            if [ $attempts -ge 15 ]; then
-              echo "❌ Serviço não ficou saudável a tempo"
-              docker service ls --filter name="${STACK_NAME}_" --format 'table {{.Name}}\t{{.Replicas}}'
+            if [ $attempts -ge $max_attempts ]; then
+              echo "❌ Serviço não ficou saudável após $max_attempts tentativas"
+
+              echo "🔍 Logs finais do container:"
+              docker service logs "$SERVICE_NAME" --tail 50
+
+              echo "📊 Status dos serviços:"
+              docker service ls --filter name="${STACK_NAME}_"
+
+              echo "🐳 Status dos containers:"
+              docker ps --filter name="${STACK_NAME}"
+
+              echo "🔐 Secrets disponíveis:"
+              docker secret ls | grep conexao-de-sorte
+
               exit 1
             fi
-            echo "⏳ Tentativa $attempts..."
-            sleep 10
+            echo "⏳ Health check tentativa $attempts/$max_attempts..."
+            sleep 15
           done
-          echo "✅ Health check OK"
+
+          echo "✅ Health check OK - serviço está saudável!"
+
+          # Teste final de conectividade
+          echo "🧪 Teste final de conectividade:"
+          curl -s http://localhost:8087/actuator/health | head -3
 
   summary:
     needs: deploy-selfhosted
