@@ -118,12 +118,6 @@
             <artifactId>r2dbc-pool</artifactId>
         </dependency>
 
-        <!-- MySQL JDBC para Flyway -->
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
-        </dependency>
 
         <!-- Spring Security OAuth2 para validação JWT -->
         <dependency>
@@ -184,15 +178,6 @@
             <artifactId>micrometer-tracing</artifactId>
         </dependency>
 
-        <!-- Flyway para migrations -->
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
-        </dependency>
 
         <!-- Logging estruturado -->
         <dependency>
@@ -418,19 +403,6 @@
                 </executions>
             </plugin>
 
-            <!-- Flyway plugin para migrations -->
-            <plugin>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-maven-plugin</artifactId>
-                <configuration>
-                    <driver>com.mysql.cj.jdbc.Driver</driver>
-                    <locations>
-                        <location>classpath:db/migration</location>
-                    </locations>
-                    <connectRetries>3</connectRetries>
-                    <connectRetriesInterval>10</connectRetriesInterval>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 

@@ -111,6 +111,10 @@ RUN printf '%s\n' \
     'echo "🔧 Perfil: ${SPRING_PROFILES_ACTIVE:-prod}"' \
     'echo "🌐 Porta: ${SERVER_PORT:-8087}"' \
     '' \
+    '# Garantir que diretório de logs existe' \
+    'mkdir -p /app/logs' \
+    'chmod 755 /app/logs' \
+    '' \
     '# Aguardar dependências se necessário' \
     'if [ -n "$WAIT_FOR_SERVICES" ]; then' \
     '    echo "⏳ Aguardando serviços: $WAIT_FOR_SERVICES"' \
