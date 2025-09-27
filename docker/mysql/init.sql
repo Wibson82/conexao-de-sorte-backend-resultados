@@ -81,13 +81,17 @@ ANALYZE TABLE resultados;
 
 -- Criar usuário específico para a aplicação (se não existir)
 -- A senha deve ser fornecida via variável de ambiente (ex.: DB_PASSWORD)
-CREATE USER IF NOT EXISTS 'resultados_user'@'%' IDENTIFIED BY '${DB_PASSWORD}';
-
--- Conceder privilégios específicos
-GRANT SELECT, INSERT, UPDATE, DELETE ON conexao_sorte_resultados.* TO 'resultados_user'@'%';
-
--- Flush privileges
-FLUSH PRIVILEGES;
+-- NOTA DE SEGURANÇA: criação/alteração de usuários e senhas NÃO deve
+-- ser feita por este script. As credenciais e a criação/gestão de usuários
+-- deverão ser realizadas fora do código da aplicação (por exemplo, via
+-- pipeline CI/CD, Docker Secrets ou administração do banco).
+--
+-- Removemos as operações de CREATE USER / GRANT / FLUSH do script para
+-- cumprir a política de segurança: NUNCA alterar usuário/senha a partir
+-- do código do projeto. Se for necessário que este script se conecte ao
+-- servidor MySQL para criar o banco/tabelas, as credenciais deverão ser
+-- providas ao container via Docker Secrets (fornecidos pelo workflow) e
+-- não devem ser modificadas pelo script.
 
 -- Log da inicialização
 SELECT 'Database resultados inicializado com sucesso!' as status;
