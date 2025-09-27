@@ -1,20 +1,20 @@
 -- ============================================================================
 -- 📊 SCRIPT DE INICIALIZAÇÃO - DATABASE RESULTADOS
 -- ============================================================================
--- 
+--
 -- Criação da estrutura inicial do banco de dados para o microserviço
 -- de resultados com otimizações para alta performance e consultas frequentes.
--- 
+--
 -- Inclui:
 -- - Tabela de resultados otimizada
--- - Índices para consultas rápidas  
+-- - Índices para consultas rápidas
 -- - Usuário específico para a aplicação
 -- - Configurações de performance
 -- ============================================================================
 
 -- Criar database se não existir
-CREATE DATABASE IF NOT EXISTS conexao_sorte_resultados 
-  CHARACTER SET utf8mb4 
+CREATE DATABASE IF NOT EXISTS conexao_sorte_resultados
+  CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 -- Usar o database
@@ -33,15 +33,15 @@ CREATE TABLE IF NOT EXISTS resultados (
     setimo VARCHAR(2) NOT NULL COMMENT 'Sétimo número sorteado',
     soma VARCHAR(3) COMMENT 'Soma de todos os números',
     data_resultado DATE NOT NULL COMMENT 'Data do resultado',
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação do registro',
-    data_modificacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data da última modificação',
-    
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação do registro',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data da última modificação',
+
     -- Índices para performance
     INDEX idx_data_resultado (data_resultado DESC),
     INDEX idx_horario (horario),
     INDEX idx_data_horario (data_resultado DESC, horario),
     INDEX idx_soma (soma),
-    
+
     -- Índices para busca por números específicos
     INDEX idx_primeiro (primeiro),
     INDEX idx_segundo (segundo),
@@ -50,16 +50,16 @@ CREATE TABLE IF NOT EXISTS resultados (
     INDEX idx_quinto (quinto),
     INDEX idx_sexto (sexto),
     INDEX idx_setimo (setimo),
-    
+
     -- Índice composto para consultas de período
     INDEX idx_periodo (data_resultado, horario, id),
-    
+
     -- Constraint única para evitar duplicatas
     UNIQUE KEY uk_horario_data (horario, data_resultado)
-    
-) ENGINE=InnoDB 
-  DEFAULT CHARSET=utf8mb4 
-  COLLATE=utf8mb4_unicode_ci 
+
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
   COMMENT='Tabela de resultados de loteria - Microserviço Resultados';
 
 -- Dados de exemplo para testes (opcional)
@@ -71,8 +71,7 @@ INSERT IGNORE INTO resultados (horario, primeiro, segundo, terceiro, quarto, qui
 ('18:00', '02', '14', '26', '35', '46', '57', '68', '248', DATE_SUB(CURDATE(), INTERVAL 1 DAY)),
 ('21:00', '09', '16', '27', '31', '42', '53', '64', '242', DATE_SUB(CURDATE(), INTERVAL 1 DAY));
 
--- Otimizações específicas da tabela
-ALTER TABLE resultados 
+ALTER TABLE resultados
   ROW_FORMAT=DYNAMIC,
   STATS_PERSISTENT=1,
   STATS_AUTO_RECALC=1;
